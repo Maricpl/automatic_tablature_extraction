@@ -1,0 +1,3 @@
+[submodule "query-bandit"]
+	path = query-bandit
+	url = https://github.com/kwatcharasupat/query-bandit.git
