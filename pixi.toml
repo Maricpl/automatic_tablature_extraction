@@ -16,7 +16,6 @@ ruff = ">=0.6.2,<0.7"
 matplotlib = ">=3.5.3,<4"
 pandas = "*"
 
-
 [pypi-dependencies]
 openunmix = "*"
 soundfile = "*"
@@ -26,3 +25,4 @@ bokeh = "==2.4.0"
 visual_midi = "*"
 yt-dlp =  { version = "*", extras = ["default"]}
 tayuya = "*"
+gradio = ">=5.13.2, <6"

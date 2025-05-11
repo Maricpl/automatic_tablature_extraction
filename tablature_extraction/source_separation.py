@@ -8,13 +8,14 @@ from scipy.io.wavfile import write
 from torchaudio.pipelines import HDEMUCS_HIGH_MUSDB_PLUS
 from torchaudio.transforms import Fade
 import torchaudio
-import argparse
+import argparse 
+#from query_bandit.train import inference_byoq
 
 
 class SeparationModel(ABC):
     def __init__(self, model_name: str):
         self.model_name = model_name
-        self.output_dir = "data/results/" + model_name
+        self.output_dir = "data/results/" + model_name + "/"
 
     @abstractmethod
     def separate(self, audio_file: str) -> dict:
@@ -52,9 +53,10 @@ class OpenUnmix(SeparationModel):
         y, sr = lr.load(audio_file, sr=None)
 
         estimates = predict.separate(torch.as_tensor(y).float(), rate=sr, device=device)
-        out_path = self.output_dir + "_" + audio_file.split("/")[-1].split(".")[0]
+        out_path = self.output_dir + audio_file.split("/")[-1].split(".")[0]
         os.makedirs(out_path, exist_ok=True)
 
+        result = {}
         for target, estimate in estimates.items():
             # print(target)
             audio = estimate.detach().cpu().numpy()[0][0]
@@ -62,6 +64,11 @@ class OpenUnmix(SeparationModel):
             # display(Audio(audio, rate=sr))
             write(f"{out_path}/{target}.wav", sr, audio)
             print(f"Saved {target} to {out_path}/{target}.wav")
+            result[target] = f"{out_path}/{target}.wav"
+        
+        return result
+
+
 
 
 class HybridDemucs(SeparationModel):
@@ -165,7 +172,9 @@ class HybridDemucs(SeparationModel):
 
         audios = dict(zip(sources_list, sources))
 
-        out_path = self.output_dir + "_" + audio_file.split("/")[-1].split(".")[0]
+        result = {}
+
+        out_path = self.output_dir + audio_file.split("/")[-1].split(".")[0]
         os.makedirs(out_path, exist_ok=True)
         for source, audio in audios.items():
             # print(source)
@@ -174,27 +183,59 @@ class HybridDemucs(SeparationModel):
             # display(Audio(audio, rate=sample_rate))
             write(f"{out_path}/{source}.wav", sample_rate, audio)
             print(f"Saved {source} to {out_path}/{source}.wav")
+            result[source] = f"{out_path}/{source}.wav"
 
+        return result
 
-#TODO add query badit and rest of demucses
-MODELS_MAPPING = {
-    "open_unmix": OpenUnmix,
-    "hybrid_demucs": HybridDemucs,
-}
-
-
-# class SeparationHub(SeparationModel):
-#     def __init__(self, model_name: str):
-#         super().__init__(model_name="separation-hub")
-#         self.model = MODELS_MAPPING[model_name]
+# class Banquet(SeparationModel):
+#     def __init__(self):
+#         super().__init__(model_name="banquet")
 
 #     def separate(self, audio_file: str) -> dict:
 #         """
-#         Separate the audio file into different sources using Separation Hub.
+#         Separate the audio file into different sources using Banquet.
+
 #         :param audio_file: Path to the audio file to be separated.
 #         :return: Dictionary containing separated sources.
 #         """
-#         self.model.separate(audio_file)
+#         inference_byoq()
+
+#         return 0
+
+
+class SeparationHub(SeparationModel):
+    # Class-level mapping of available models
+    _model_mapping = {
+        "open_unmix": OpenUnmix,
+        "hybrid_demucs": HybridDemucs,
+        # "banquet": Banquet,
+    }
+
+    def __init__(self, model_name: str):
+        super().__init__(model_name="separation-hub")
+        if model_name not in self._model_mapping:
+            raise ValueError(
+                f"Invalid model name '{model_name}'. Available models: {self.get_available_models()}"
+            )
+        self.model = self._model_mapping[model_name]()
+
+    def separate(self, audio_file: str) -> dict:
+        """
+        Separate the audio file into different sources using Separation Hub.
+
+        :param audio_file: Path to the audio file to be separated.
+        :return: Dictionary containing separated sources.
+        """
+        return self.model.separate(audio_file)
+
+    @classmethod
+    def get_available_models(cls):
+        """
+        Get the mapping of available models for source separation.
+
+        :return: Dictionary of model names and their corresponding classes.
+        """
+        return list(cls._model_mapping.keys())
 
 
 def get_module_args():
@@ -205,7 +246,7 @@ def get_module_args():
     parser.add_argument(
         "--model",
         type=str,
-        choices=["open_unmix", "hybrid_demucs"],
+        choices=SeparationHub.get_available_models(),
         default="open_unmix",
         help="Model to use for source separation",
     )
@@ -221,5 +262,5 @@ def get_module_args():
 if __name__ == "__main__":
     args = get_module_args()
 
-    model: SeparationModel = MODELS_MAPPING[args.model]()
+    model = SeparationHub(model_name=args.model)
     model.separate(args.audio_file)
