@@ -26,3 +26,5 @@ visual_midi = "*"
 yt-dlp =  { version = "*", extras = ["default"]}
 tayuya = "*"
 gradio = ">=5.13.2, <6"
+httpx = "==0.25.0"
+pydantic = "==2.10.6"

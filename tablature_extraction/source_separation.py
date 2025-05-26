@@ -9,13 +9,16 @@ from torchaudio.pipelines import HDEMUCS_HIGH_MUSDB_PLUS
 from torchaudio.transforms import Fade
 import torchaudio
 import argparse 
+from matplotlib import pyplot as plt
 #from query_bandit.train import inference_byoq
 
 
 class SeparationModel(ABC):
-    def __init__(self, model_name: str):
+    def __init__(self, model_name: str, output_dir: str = None):
         self.model_name = model_name
-        self.output_dir = "data/results/" + model_name + "/"
+        if output_dir is None:
+            output_dir = "data/results/" + model_name + "/"
+        self.output_dir = output_dir
 
     @abstractmethod
     def separate(self, audio_file: str) -> dict:
@@ -27,6 +30,24 @@ class SeparationModel(ABC):
         """
         pass
 
+    def plot_spectrogram(self, audio_file: str):
+        """
+        Plot the spectrogram of the audio file.
+
+        :param audio_file: Path to the audio file to be plotted.
+        """
+        y, sr = lr.load(audio_file, sr=None)
+        stft = np.abs(lr.stft(y))
+        spectrogram = lr.amplitude_to_db(stft, ref=np.max)
+
+        fig, ax = plt.subplots(figsize=(10, 4))
+        img = lr.display.specshow(spectrogram, sr=sr, x_axis="time", y_axis="log", ax=ax)
+        fig.colorbar(img, ax=ax, format="%+2.0f dB")
+        ax.set_title("Spectrogram")
+        #fig.tight_layout()
+
+        return fig
+    
     # @abc.abstractmethod
     # def load_model(self):
     #     """
@@ -36,8 +57,8 @@ class SeparationModel(ABC):
 
 
 class OpenUnmix(SeparationModel):
-    def __init__(self):
-        super().__init__(model_name="open_unmix")
+    def __init__(self, output_dir: str = None):
+        super().__init__(model_name="open_unmix", output_dir=output_dir)
 
     def separate(self, audio_file: str) -> dict:
         """
@@ -72,8 +93,8 @@ class OpenUnmix(SeparationModel):
 
 
 class HybridDemucs(SeparationModel):
-    def __init__(self):
-        super().__init__(model_name="hybrid_demucs")
+    def __init__(self, output_dir: str = None):
+        super().__init__(model_name="hybrid_demucs", output_dir=output_dir)
 
     def separate(self, audio_file: str) -> dict:
         """
@@ -145,6 +166,8 @@ class HybridDemucs(SeparationModel):
         model.to(device)
 
         waveform, sample_rate = torchaudio.load(audio_file)
+        if waveform.shape[0] == 1:
+            waveform = waveform.repeat(2, 1)
 
         # print(song)
         # display(Audio(waveform, rate=sample_rate))
@@ -211,8 +234,8 @@ class SeparationHub(SeparationModel):
         # "banquet": Banquet,
     }
 
-    def __init__(self, model_name: str):
-        super().__init__(model_name="separation-hub")
+    def __init__(self, model_name: str, output_dir: str = None):
+        super().__init__(model_name="separation-hub", output_dir=output_dir)
         if model_name not in self._model_mapping:
             raise ValueError(
                 f"Invalid model name '{model_name}'. Available models: {self.get_available_models()}"

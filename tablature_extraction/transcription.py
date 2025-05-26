@@ -11,9 +11,11 @@ import os
 
 
 class TranscriptionModel(ABC):
-    def __init__(self, model_name: str):
+    def __init__(self, model_name: str, output_dir: str = None):
         self.model_name = model_name
-        self.output_dir = "data/results/" + model_name
+        if output_dir is None:
+            output_dir = "data/results/" + model_name + "/"
+        self.output_dir = output_dir
 
     @abstractmethod
     def transcribe(self, audio_file: str) -> dict:
@@ -27,34 +29,40 @@ class TranscriptionModel(ABC):
 
 
 class BasicPitch(TranscriptionModel):
-    def __init__(self):
-        super().__init__(model_name="basic_pitch")
+    def __init__(self, output_dir: str = None):
+        super().__init__(model_name="basic_pitch", output_dir=output_dir)
 
     def transcribe(self, audio_file: str):
         model_output, midi_data, note_events = predict(
             audio_file, ICASSP_2022_MODEL_PATH
         )
 
+        midi_data.write(os.path.join(self.output_dir, "output.mid"))
+        print(f"Transcription completed. MIDI data saved to {self.output_dir}/output.mid")
         return midi_data
 
     def plot_piano_roll(self, midi_data, start_pitch=24, end_pitch=84, fs=100):
         # Use librosa's specshow function for displaying the piano roll
-        lr.display.specshow(
+        fig, ax = plt.subplots(figsize=(10, 4))
+        img = lr.display.specshow(
             midi_data.get_piano_roll(fs)[start_pitch:end_pitch],
             hop_length=1,
             sr=fs,
             x_axis="time",
             y_axis="cqt_note",
             fmin=pretty_midi.note_number_to_hz(start_pitch),
+            ax=ax
         )
-
+        
+        return fig
+    
 class TrascriptionHub(TranscriptionModel):
     _model_mapping = {
             "basic_pitch": BasicPitch,
         }
     
-    def __init__(self, model_name: str):
-        super().__init__(model_name="transcription_hub")
+    def __init__(self, model_name: str, output_dir: str = None):
+        super().__init__(model_name="transcription_hub", output_dir=output_dir)
         if model_name not in self._model_mapping:
             raise ValueError(
                 f"Invalid model name '{model_name}'. Available models: {self.get_available_models()}"
@@ -66,7 +74,43 @@ class TrascriptionHub(TranscriptionModel):
         return self.model.transcribe(audio_file)
 
     def plot_piano_roll(self, midi_data, start_pitch=24, end_pitch=84, fs=100):
-       self.model.plot_piano_roll(midi_data, start_pitch, end_pitch, fs)
+       return self.model.plot_piano_roll(midi_data, start_pitch, end_pitch, fs)
+
+    @classmethod
+    def get_available_models(cls):
+        """
+        Returns a list of available models for transcription.
+        """
+        return list(cls._model_mapping.keys())
+
+class TablatureTranscriptionModel(TranscriptionModel, ABC):
+    def __init__(self, model_name: str, output_dir: str = None):
+        super().__init__(model_name=model_name, output_dir=output_dir)
+
+
+class Tayuya(TablatureTranscriptionModel):
+    def __init__(self, output_dir: str = None):
+        super().__init__(model_name="tayuya", output_dir=output_dir)
+
+    def transcribe(self, midi_path: str) -> str:
+        mid = MIDIParser(midi_path, track=1)
+        return mid.render_tabs()
+
+class TablatureTrascriptionHub(TablatureTranscriptionModel):
+    _model_mapping = {
+            "tayuya": Tayuya,
+        }
+    
+    def __init__(self, model_name: str, output_dir: str = None):
+        super().__init__(model_name="tablature_hub", output_dir=output_dir)
+        if model_name not in self._model_mapping:
+            raise ValueError(
+                f"Invalid model name '{model_name}'. Available models: {self.get_available_models()}"
+            )
+        self.model = self._model_mapping[model_name]()
+
+    def transcribe(self, audio_file: str):
+        return self.model.transcribe(audio_file)
 
     @classmethod
     def get_available_models(cls):

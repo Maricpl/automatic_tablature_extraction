@@ -1,20 +1,27 @@
 import argparse
 from tablature_extraction.source_separation import SeparationHub
-from tablature_extraction.transcription import TrascriptionHub
+from tablature_extraction.transcription import TrascriptionHub, TablatureTrascriptionHub
 from matplotlib import pyplot as plt
 import os
 from tayuya import MIDIParser
 import numpy as np
 import librosa as lr
 import librosa.display
+from datetime import datetime
 
 
 class TablatureGenerationPipeline:
-    def __init__(self, separation_model: str, transcription_model: str):
-        self.source_separation = SeparationHub(model_name=separation_model)
-        self.transcription = TrascriptionHub(model_name=transcription_model)
+    def __init__(self, separation_model: str, transcription_model: str, tablature_transcription_model: str, output_dir: str = None):
+        if output_dir is None:
+            time_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            output_dir = "data/results/" + time_str
+        os.makedirs(output_dir)
+        self.source_separation = SeparationHub(model_name=separation_model, output_dir=output_dir)
+        self.transcription = TrascriptionHub(model_name=transcription_model, output_dir=output_dir)
+        self.tablature_transcription = TablatureTrascriptionHub(model_name=tablature_transcription_model, output_dir=output_dir)
 
-    def inference(self, audio_path: str):
+
+    def inference(self, audio_path: str, stem="other"):
         # Source Separation
         print(f"Separating sources from {audio_path} using {self.source_separation.model.model_name}...")
         stems = self.source_separation.separate(audio_path)
@@ -24,37 +31,19 @@ class TablatureGenerationPipeline:
         print(f"Transcribing guitar stem from {guitar_stem} using {self.transcription.model.model_name}...")
         midi_data = self.transcription.transcribe(guitar_stem)
 
-        # plt.figure(figsize=(12, 4))
-        # self.transcription.plot_piano_roll(midi_data, 24, 84)
-        # plt.show()
+        out_file = self.transcription.model.output_dir + "/" + f'/{stem}.mid'
+        print(f"Saving MIDI data to {out_file}...")
+        # if os.path.exists(out_file):
+        #     os.remove(out_file)
+        # os.makedirs(out_file, exist_ok=True)
+        midi_data.write(out_file)
 
-        stem = "other"
-        out_file = self.transcription.model.output_dir + "/" + stem
-        print(out_file)
-        os.makedirs(out_file, exist_ok=True)
-        midi_data.write(out_file +  f'/{stem}.mid')
 
-        mid = MIDIParser(out_file + f'/{stem}.mid', track=1)
-        mid.render_tabs()
+        # Tablature Transcription
+        str_transcription = self.tablature_transcription.transcribe(out_file)
 
-        # with open(out_file + f'/{stem}.txt', 'w') as f:
-        #     for tab in tabs:
-        #         f.write(tab + '\n')
-        
-    def inference_mock(self, audio_path: str):
-        # generate spectrogram for audio
-        y, sr = lr.load(audio_path, sr=None)
-        stft = np.abs(lr.stft(y))
-        spectrogram = lr.amplitude_to_db(stft, ref=np.max)
-        spectrogram
-
-        fig = plt.figure(figsize=(10, 4))
-        librosa.display.specshow(spectrogram, sr=sr, x_axis="time", y_axis="log")
-        plt.colorbar(format="%+2.0f dB")
-        plt.title("Spectrogram")
-        plt.tight_layout()
-
-        return fig
+        return guitar_stem, midi_data, str_transcription
+    
 
 
 def get_module_args():
@@ -77,6 +66,13 @@ def get_module_args():
         help="Model to use for transcription",
     )
     parser.add_argument(
+        "--tablature_transcription_model",
+        type=str,
+        choices=TablatureTrascriptionHub.get_available_models(),
+        default="tayuya",
+        help="Model to use for tablature transcription",
+    )
+    parser.add_argument(
         "--audio",
         type=str,
         required=True,
@@ -92,5 +88,6 @@ if __name__ == "__main__":
     pipeline = TablatureGenerationPipeline(
         separation_model=args.separation_model,
         transcription_model=args.transcription_model,
+        tablature_transcription_mode=args.tablature_transcription_model, 
     )
     pipeline.inference(args.audio)

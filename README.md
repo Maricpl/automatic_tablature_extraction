@@ -6,3 +6,9 @@ Topic is devoted into problem of generating guitar tablature from songs recordin
 
 ## REPO structure
 experiments.ipynb - contains simple inference tests of Open-Unmix and Hybrid Demucs for source separation and baisc-pitch for music transcription for four example recordings.
+
+
+# Example run:
+```bash
+python -m tablature_extraction.pipeline --separation_model open_unmix --transcription_model basic_pitch --audio data/songs/mettalica_10s.wav 
+```
