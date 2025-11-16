@@ -1,3 +1,6 @@
-[submodule "query_bandit"]
-	path = query_bandit
-	url = https://github.com/kwatcharasupat/query-bandit.git
+[submodule "query-bandit"]
+    path = query-bandit
+    url = https://github.com/kwatcharasupat/query-bandit.git
+[submodule "htdemucs"]
+    path = htdemucs
+    url = https://github.com/Maricpl/htdemucs
