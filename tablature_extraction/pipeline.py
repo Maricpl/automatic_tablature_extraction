@@ -88,6 +88,6 @@ if __name__ == "__main__":
     pipeline = TablatureGenerationPipeline(
         separation_model=args.separation_model,
         transcription_model=args.transcription_model,
-        tablature_transcription_mode=args.tablature_transcription_model, 
+        tablature_transcription_model=args.tablature_transcription_model, 
     )
     pipeline.inference(args.audio)
