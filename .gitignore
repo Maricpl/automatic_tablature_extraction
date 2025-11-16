@@ -1,0 +1,5 @@
+data/*
+# pixi environments
+.pixi
+*.egg-info
+query-bandit

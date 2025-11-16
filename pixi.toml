@@ -1,0 +1,35 @@
+[workspace]
+authors = ["Michał Olejnik <maricpl@wp.pl>"]
+channels = ["conda-forge"]
+name = "automatic_tablature_extraction"
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+python = "*"
+ipykernel = "*"
+numpy = "1.22.4"
+librosa = "*"
+ruff = ">=0.6.2,<0.7"
+matplotlib = ">=3.5.3,<4"
+pandas = "*"
+omegaconf = ">=2.3.0,<3"
+
+[pypi-dependencies]
+openunmix = "*"
+soundfile = "*"
+basic-pitch = "*"
+pretty_midi = ">=0.2.8"
+bokeh = "==2.4.0"
+visual_midi = "*"
+yt-dlp =  { version = "*", extras = ["default"]}
+tayuya = "*"
+gradio = ">=5.13.2, <6"
+httpx = "==0.25.0"
+pydantic = "==2.10.6"
+pytorch-lightning = ">=2.5.1.post0, <3"
+torch-audiomentations = ">=0.12.0, <0.13"
+hear21passt = ">=0.0.26, <0.0.27"
+fire = ">=0.7.0, <0.8"
