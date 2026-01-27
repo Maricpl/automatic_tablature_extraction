@@ -8,7 +8,7 @@ version = "0.1.0"
 [tasks]
 
 [dependencies]
-python = "*"
+python = "==3.9"
 ipykernel = "*"
 numpy = "1.22.4"
 librosa = "*"
@@ -41,5 +41,5 @@ pyyaml = "*"
 torch = ">=1.8.1"
 torchaudio = "*"
 tqdm = "*"
-demucs = "*"
 torchcodec = "*"
+demucs = { git = "https://github.com/adefossez/demucs.git" }

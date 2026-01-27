@@ -10,7 +10,7 @@ from torchaudio.transforms import Fade
 import torchaudio
 import argparse 
 from matplotlib import pyplot as plt
-from htdemucs.demucs import api as demucs_api
+import demucs.api as demucs_api
 #from query_bandit.train import inference_byoq
 
 
@@ -229,21 +229,6 @@ class HTDemucs(SeparationModel):
         result[stem] = f"{out_path}/{stem}.wav"
 
         return result
-# class Banquet(SeparationModel):
-#     def __init__(self):
-#         super().__init__(model_name="banquet")
-
-#     def separate(self, audio_file: str) -> dict:
-#         """
-#         Separate the audio file into different sources using Banquet.
-
-#         :param audio_file: Path to the audio file to be separated.
-#         :return: Dictionary containing separated sources.
-#         """
-#         inference_byoq()
-
-#         return 0
-
 
 class SeparationHub(SeparationModel):
     # Class-level mapping of available models
