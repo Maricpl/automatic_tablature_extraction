@@ -12,3 +12,7 @@ experiments.ipynb - contains simple inference tests of Open-Unmix and Hybrid Dem
 ```bash
 python -m tablature_extraction.pipeline --separation_model open_unmix --transcription_model basic_pitch --audio data/songs/mettalica_10s.wav 
 ```
+
+
+
+There's a need to set the environment variable SKLEARN_ALLOW_DEPRECATED_SKLEARN_PACKAGE_INSTALL=True, because of one of old dependencies.

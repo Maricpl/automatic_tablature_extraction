@@ -10,6 +10,7 @@ from torchaudio.transforms import Fade
 import torchaudio
 import argparse 
 from matplotlib import pyplot as plt
+import demucs.api as demucs_api
 #from query_bandit.train import inference_byoq
 
 
@@ -209,28 +210,32 @@ class HybridDemucs(SeparationModel):
             result[source] = f"{out_path}/{source}.wav"
 
         return result
+    
+class HTDemucs(SeparationModel):
+    def __init__(self, output_dir: str = None):
+        super().__init__(model_name="ht_demucs", output_dir=output_dir)
 
-# class Banquet(SeparationModel):
-#     def __init__(self):
-#         super().__init__(model_name="banquet")
+    def separate(self, audio_file: str) -> dict:
+        separator = demucs_api.Separator(model = "htdemucs_6s", shifts=1, overlap=0.25, progress=True)
+        origin, separated = separator.separate_audio_file(audio_file)
 
-#     def separate(self, audio_file: str) -> dict:
-#         """
-#         Separate the audio file into different sources using Banquet.
+        result = {}
+        out_path = self.output_dir + audio_file.split("/")[-1].split(".")[0]
+        os.makedirs(out_path, exist_ok=True)
 
-#         :param audio_file: Path to the audio file to be separated.
-#         :return: Dictionary containing separated sources.
-#         """
-#         inference_byoq()
+        for stem, audio in separated.items():
+            demucs_api.save_audio(audio, f"{out_path}/{stem}.wav", samplerate=separator.samplerate)
 
-#         return 0
+        result[stem] = f"{out_path}/{stem}.wav"
 
+        return result
 
 class SeparationHub(SeparationModel):
     # Class-level mapping of available models
     _model_mapping = {
         "open_unmix": OpenUnmix,
         "hybrid_demucs": HybridDemucs,
+        "ht_demucs": HTDemucs,
         # "banquet": Banquet,
     }
 
