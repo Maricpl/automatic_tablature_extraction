@@ -14,12 +14,17 @@ import demucs.api as demucs_api
 import sys
 from pathlib import Path
 import soundfile as sf
+from omegaconf import OmegaConf
 
-    
-# Import and initialize model
+
+# Add BandSplitRNN to path
+sys.path.append('BandSplitRNN/src')
+
+# Import and initialize models
 from DTTNetPytorch.src.dp_tdf.dp_tdf_net import DPTDFNet
 from DTTNetPytorch.src.evaluation.separate import separate_with_ckpt_TDF
 from DTTNetPytorch.src.utils.utils import load_wav
+from BandSplitRNN.src.separator import Separator
 #from query_bandit.train import inference_byoq
 
 
@@ -333,6 +338,65 @@ class DTTNet(SeparationModel):
         
         return {self.target: output_file}
 
+
+class BandSplitRNN(SeparationModel):
+    """Wrapper for BandSplitRNN source separation model."""
+    
+    def __init__(self, output_dir: str = None, ckpt_path: str = "BandSplitRNN/src/saved_models/other/other.ckpt", target: str = "other"):
+        """
+        Initialize BandSplitRNN wrapper.
+        
+        :param output_dir: Directory to save separated sources
+        :param ckpt_path: Path to BandSplitRNN checkpoint (.pt file)
+        :param target: Target stem to extract ("vocals", "drums", "bass", or "other")
+        """
+        super().__init__(model_name="bandsplitrnn", output_dir=output_dir)
+        
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.ckpt_path = ckpt_path
+        self.target = target
+        
+        # Load config
+        self.cfg_path = Path(f"BandSplitRNN/src/saved_models/{self.target}/hparams.yaml")
+        self.cfg = OmegaConf.load(self.cfg_path)
+        
+        # Create model
+        self.model = Separator(self.cfg, self.ckpt_path)
+        self.model.to(self.device)
+        self.model.eval()
+
+    def separate(self, audio_file: str) -> dict:
+        """
+        Separate audio file using BandSplitRNN.
+        
+        :param audio_file: Path to the audio file to be separated
+        :return: Dictionary containing path to separated target stem
+        """
+        # Load audio
+        mix, sr = torchaudio.load(audio_file)
+        if mix.shape[0] == 1:
+            mix = mix.repeat(2, 1)
+        mix = mix.to(self.device)
+
+        # Separate
+        target_wav = self.model(mix)
+        target_wav = target_wav.cpu().numpy()
+        
+        # Save output
+        out_path = os.path.join(
+            self.output_dir,
+            os.path.splitext(os.path.basename(audio_file))[0]
+        )
+        os.makedirs(out_path, exist_ok=True)
+        
+        output_file = os.path.join(out_path, f"{self.target}.wav")
+        sf.write(output_file, target_wav.T, sr)
+        
+        print(f"Saved {self.target} to {output_file}")
+        
+        return {self.target: output_file}
+
+
 class SeparationHub(SeparationModel):
     # Class-level mapping of available models
     _model_mapping = {
@@ -340,6 +404,7 @@ class SeparationHub(SeparationModel):
         "hybrid_demucs": HybridDemucs,
         "ht_demucs": HTDemucs,
         "dttnet": DTTNet,
+        "bandsplitrnn": BandSplitRNN,
         # "banquet": Banquet,
     }
 
@@ -349,7 +414,7 @@ class SeparationHub(SeparationModel):
             raise ValueError(
                 f"Invalid model name '{model_name}'. Available models: {self.get_available_models()}"
             )
-        self.model = self._model_mapping[model_name]()
+        self.model = self._model_mapping[model_name](output_dir=output_dir)
 
     def separate(self, audio_file: str) -> dict:
         """

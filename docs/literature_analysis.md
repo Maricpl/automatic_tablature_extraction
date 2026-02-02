@@ -13,9 +13,9 @@ Separated into 2 main parts Music Source Separation and Automatic Music Transcri
 | **Conv-TasNet** | Conv-TasNet: Surpassing Ideal Time-Frequency Magnitude Masking for Speech Separation | 2019 | **Luo & Mesgarani** <br> Time-domain dilated convolutional network; originally for speech, adapted for music. | Wont ✅| ✅ |
 | **Spleeter** | Spleeter: a fast and efficient music source separation tool with pre-trained models | 2020 | **Hennequin et al.** <br> Deezer's industrial tool; efficient U-Net based TensorFlow implementation. | Dependency hell ✅ | ✅ |
 | **Hybrid Demucs** | Hybrid Spectrogram and Waveform Source Separation | 2021 | **Défossez** <br> Combines spectral (frequency) and waveform (time) domain branches. | ✅ |✅ |
-| **KUIELab-MDX-Net** | KUIELab-MDX-Net: A Two-Stream Neural Network for Music Demixing | 2021 | **Kim et al.** <br> Winning solution for MDX 2021; ensemble of TFC-TDF-U-Net and Demucs. | Todo | partly |
-| **TFC-TDF-U-Net** | KUIELab-MDX-Net (TFC-TDF-U-Net) | 2021 | **Choi et al.** <br> Time-Frequency Convolutions and Time-Distributed Fully-connected U-Net. | Todo | partly |
-| **Band-split RNN** | Music Source Separation with Band-split RNN | 2022 | **Luo & Yu** <br> Splits spectrogram into subbands processed by RNNs for fine-grained modeling. | doing | ✅ |
+| **KUIELab-MDX-Net** | KUIELab-MDX-Net: A Two-Stream Neural Network for Music Demixing | 2021 | **Kim et al.** <br> Winning solution for MDX 2021; ensemble of TFC-TDF-U-Net and Demucs. | ✅ another demucs version | partly |
+| **TFC-TDF-U-Net** | KUIELab-MDX-Net (TFC-TDF-U-Net) | 2021 | **Choi et al.** <br> Time-Frequency Convolutions and Time-Distributed Fully-connected U-Net. | ✅ another demucs version| partly |
+| **Band-split RNN** | Music Source Separation with Band-split RNN | 2022 | **Luo & Yu** <br> Splits spectrogram into subbands processed by RNNs for fine-grained modeling. | ✅ | ✅ |
 | **Mel-Band RoFormer** | Mel-Band RoFormer for Music Source Separation | 2023 | **Wang et al.** <br> Transformer with Rotary Embeddings & Mel-band split; SOTA performance. | Todo | ❌|
 | **Band-Split RoPE Transformer** | MUSIC SOURCE SEPARATION WITH BAND-SPLIT ROPE TRANSFORMER | 2023 | **Lu et al.** <br> Replaces RNN in Band-Split model with Transformers; MDX23 winner. | Todo | ❌|
 | **Hybrid Transformer Demucs** | HYBRID TRANSFORMERS FOR MUSIC SOURCE SEPARATION | 2023 | **Rouard et al.** <br> HT Demucs; adds Transformer layers to the Hybrid Demucs architecture. | ✅ | ✅ |

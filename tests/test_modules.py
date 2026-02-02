@@ -1,4 +1,4 @@
-from tablature_extraction.source_separation import SeparationHub, OpenUnmix, HybridDemucs, HTDemucs, DTTNet
+from tablature_extraction.source_separation import SeparationHub, OpenUnmix, HybridDemucs, HTDemucs, DTTNet, BandSplitRNN
 import os
 import pytest
 
@@ -12,6 +12,7 @@ def test_separation_hub():
         "hybrid_demucs",
         "ht_demucs",
         "dttnet",
+        "bandsplitrnn",
     ]
 
 def test_open_unmix(output_dir):
@@ -76,3 +77,19 @@ def test_dttnet(output_dir):
     for stem, path in separated_sources.items():
         assert os.path.isfile(path)
         assert path.endswith(".wav")
+
+def test_bandsplitrnn(output_dir):
+    """Test the BandSplitRNN separation model."""
+
+    model = SeparationHub(model_name="bandsplitrnn", output_dir=output_dir + "bandsplitrnn/")
+    
+    # Run on example.wav
+    separated_sources = model.separate("data/example.wav")
+
+    assert "other" in separated_sources
+
+    for stem, path in separated_sources.items():
+        print(path)
+        assert os.path.isfile(path)
+        assert path.endswith(".wav")
+

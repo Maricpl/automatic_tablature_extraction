@@ -23,6 +23,10 @@ git patch ../DTTNetPytorch_imports.patch
 cd ..
 ```
 
+
+
+BSRNN model checkpoit for other stem can be downloaded from https://huggingface.co/crlandsc/bsrnn-other/tree/main and should be placed in BandSplitRNN/src/saved_models/other/
+
 # Tests
 run with
 ```bash
