@@ -1,16 +1,7 @@
 diff --git a/src/dp_tdf/abstract.py b/src/dp_tdf/abstract.py
-index bdb4fb2..d6ce999 100644
+index bdb4fb2..e3d5246 100644
 --- a/src/dp_tdf/abstract.py
 +++ b/src/dp_tdf/abstract.py
-@@ -9,7 +9,7 @@ import torch.nn.functional as F
- from pytorch_lightning import LightningModule
- from pytorch_lightning.utilities.types import STEP_OUTPUT
- 
--from src.utils.utils import sdr, simplified_msseval
-+from DTTNetPytorch.src.utils.utils import sdr, simplified_msseval
- 
- 
- class AbstractModel(LightningModule):
 @@ -130,7 +130,8 @@ class AbstractModel(LightningModule):
          '''
          dim_b = x.shape[0]
@@ -28,87 +19,4 @@ index bdb4fb2..d6ce999 100644
 +        x = torch.view_as_complex(x.contiguous())
          x = torch.istft(x, n_fft=self.n_fft, hop_length=self.hop_length, window=self.window, center=True) # (batch*c, 261120)
          return x.reshape([dim_b, self.audio_ch, -1]) # (batch,c,261120)
- 
-diff --git a/src/dp_tdf/dp_tdf_net.py b/src/dp_tdf/dp_tdf_net.py
-index 8cf2c9e..0afe942 100644
---- a/src/dp_tdf/dp_tdf_net.py
-+++ b/src/dp_tdf/dp_tdf_net.py
-@@ -1,11 +1,11 @@
- import torch.nn as nn
- import torch
- 
--from src.dp_tdf.modules import TFC_TDF, TFC_TDF_Res1, TFC_TDF_Res2
--from src.dp_tdf.bandsequence import BandSequenceModelModule
-+from DTTNetPytorch.src.dp_tdf.modules import TFC_TDF, TFC_TDF_Res1, TFC_TDF_Res2
-+from DTTNetPytorch.src.dp_tdf.bandsequence import BandSequenceModelModule
- 
--from src.layers import (get_norm)
--from src.dp_tdf.abstract import AbstractModel
-+from DTTNetPytorch.src.layers import (get_norm)
-+from DTTNetPytorch.src.dp_tdf.abstract import AbstractModel
- 
- class DPTDFNet(AbstractModel):
-     def __init__(self, num_blocks, l, g, k, bn, bias, bn_norm, bandsequence, block_type,  **kwargs):
-diff --git a/src/dp_tdf/modules.py b/src/dp_tdf/modules.py
-index c297da2..f724e23 100644
---- a/src/dp_tdf/modules.py
-+++ b/src/dp_tdf/modules.py
-@@ -1,7 +1,7 @@
- import torch
- import torch.nn as nn
- 
--from src.layers import (get_norm)
-+from DTTNetPytorch.src.layers import (get_norm)
- 
- class TFC(nn.Module):
-     def __init__(self, c_in, c_out, l, k, bn_norm):
-diff --git a/src/evaluation/separate.py b/src/evaluation/separate.py
-index 1020cc5..87c282f 100644
---- a/src/evaluation/separate.py
-+++ b/src/evaluation/separate.py
-@@ -6,7 +6,7 @@ import numpy as np
- import onnxruntime as ort
- import math
- import os
--from src.utils.utils import split_nparray_with_overlap, join_chunks
-+from DTTNetPytorch.src.utils.utils import split_nparray_with_overlap, join_chunks
- 
- def separate_with_onnx(batch_size, model, onnx_path: Path, mix):
-     n_sample = mix.shape[1]
-diff --git a/src/utils/__init__.py b/src/utils/__init__.py
-index 18bc4d3..9a7cbd4 100644
---- a/src/utils/__init__.py
-+++ b/src/utils/__init__.py
-@@ -1,3 +1,3 @@
--from src.utils.pylogger import get_pylogger
--from src.utils.rich_utils import enforce_tags, print_config_tree
--from src.utils.utils import *
-+from DTTNetPytorch.src.utils.pylogger import get_pylogger
-+from DTTNetPytorch.src.utils.rich_utils import enforce_tags, print_config_tree
-+from DTTNetPytorch.src.utils.utils import *
-diff --git a/src/utils/rich_utils.py b/src/utils/rich_utils.py
-index 6b170df..72c6e52 100644
---- a/src/utils/rich_utils.py
-+++ b/src/utils/rich_utils.py
-@@ -9,7 +9,7 @@ from omegaconf import DictConfig, OmegaConf, open_dict
- from pytorch_lightning.utilities import rank_zero_only
- from rich.prompt import Prompt
- 
--from src.utils import pylogger
-+from DTTNetPytorch.src.utils import pylogger
- 
- log = pylogger.get_pylogger(__name__)
- 
-diff --git a/src/utils/utils.py b/src/utils/utils.py
-index df5c9f8..4a1ffe1 100644
---- a/src/utils/utils.py
-+++ b/src/utils/utils.py
-@@ -20,7 +20,7 @@ import subprocess
- 
- from pytorch_lightning.utilities import rank_zero_only
- 
--from src.utils import pylogger, rich_utils
-+from DTTNetPytorch.src.utils import pylogger, rich_utils
- 
- log = pylogger.get_pylogger(__name__)
  
