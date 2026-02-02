@@ -14,5 +14,17 @@ python -m tablature_extraction.pipeline --separation_model open_unmix --transcri
 ```
 
 
-
+# Submodules
 There's a need to set the environment variable SKLEARN_ALLOW_DEPRECATED_SKLEARN_PACKAGE_INSTALL=True, because of one of old dependencies.
+Apply git patch for submodules:
+```bash
+cd DTTNetPytorch
+git patch ../DTTNetPytorch_imports.patch
+cd ..
+```
+
+# Tests
+run with
+```bash
+python -m pytest tests/
+```

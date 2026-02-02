@@ -17,6 +17,7 @@ matplotlib = ">=3.5.3,<4"
 pandas = "*"
 omegaconf = ">=2.3.0,<3"
 
+
 [pypi-dependencies]
 openunmix = "*"
 soundfile = "*"
@@ -43,3 +44,9 @@ torchaudio = "*"
 tqdm = "*"
 torchcodec = "*"
 demucs = { git = "https://github.com/adefossez/demucs.git" }
+pytest = ">=8.4.1,<9"
+rich = ">=14.1.0,<15"
+hydra-core = "*"
+museval = ">=0.4.1, <0.5"
+wandb = ">=0.24.1, <0.25"
+onnxruntime = ">=1.19.2, <2"

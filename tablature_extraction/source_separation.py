@@ -11,6 +11,15 @@ import torchaudio
 import argparse 
 from matplotlib import pyplot as plt
 import demucs.api as demucs_api
+import sys
+from pathlib import Path
+import soundfile as sf
+
+    
+# Import and initialize model
+from DTTNetPytorch.src.dp_tdf.dp_tdf_net import DPTDFNet
+from DTTNetPytorch.src.evaluation.separate import separate_with_ckpt_TDF
+from DTTNetPytorch.src.utils.utils import load_wav
 #from query_bandit.train import inference_byoq
 
 
@@ -230,12 +239,107 @@ class HTDemucs(SeparationModel):
 
         return result
 
+class DTTNet(SeparationModel):
+    """Wrapper for DTTNet (Dual-Path TFC-TDF UNet) source separation model."""
+    
+    def __init__(self, output_dir: str = None, ckpt_path: str = "models/dtt/otherg32_ep3605.ckpt", target: str = "other", batch_size: int = 4):
+        """
+        Initialize DTTNet wrapper.
+        
+        :param output_dir: Directory to save separated sources
+        :param ckpt_path: Path to DTTNet checkpoint (.ckpt file)
+        :param target: Target stem to extract ("vocals", "drums", "bass", or "other")
+        :param batch_size: Batch size for inference
+        """
+        super().__init__(model_name="dttnet", output_dir=output_dir)
+        
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.ckpt_path = ckpt_path
+        self.target = target
+        self.batch_size = batch_size
+        
+        # Create model with standard DTTNet hyperparameters
+        self.model = DPTDFNet(
+            dim_f=2048,
+            dim_t=256,
+            n_fft=6144,
+            hop_length=1024,
+            overlap=3072,
+            audio_ch=2,
+            block_type="TFC_TDF_Res2",
+            num_blocks=5,
+            l=3,
+            g=32,
+            k=3,
+            bn=8,
+            bias=False,
+            bn_norm="BN",
+            bandsequence={
+                "rnn_type": "LSTM",
+                "bidirectional": True,
+                "num_layers": 4,
+                "n_heads": 2,
+            },
+            target_name = 'other',
+            lr = 0.0001,
+            optimizer = "adamW",
+        )
+        
+        self.separate_with_ckpt = separate_with_ckpt_TDF
+        self.load_wav = load_wav
+    
+    def separate(self, audio_file: str) -> dict:
+        """
+        Separate audio file using DTTNet.
+        
+        :param audio_file: Path to the audio file to be separated
+        :return: Dictionary containing path to separated target stem
+        """
+        if self.ckpt_path is None:
+            raise ValueError(
+                "ckpt_path must be provided to DTTNet. "
+                "Download a pretrained checkpoint and pass its path."
+            )
+        
+        # Load audio
+        mix = self.load_wav(audio_file)
+
+        # Create stereo
+        if mix.ndim == 1:
+            mix = np.stack([mix, mix])
+        
+        # Separate
+        target_wav = self.separate_with_ckpt(
+            batch_size=self.batch_size,
+            model=self.model,
+            ckpt_path=Path(self.ckpt_path),
+            mix=mix,
+            device=self.device,
+            double_chunk=False,
+            overlap_add=None
+        )
+        
+        # Save output
+        out_path = os.path.join(
+            self.output_dir,
+            os.path.splitext(os.path.basename(audio_file))[0]
+        )
+        os.makedirs(out_path, exist_ok=True)
+        
+        output_file = os.path.join(out_path, f"{self.target}.wav")
+        sf.write(output_file, target_wav.T, 44100)
+        
+        print(f"Saved {self.target} to {output_file}")
+        
+        return {self.target: output_file}
+
 class SeparationHub(SeparationModel):
     # Class-level mapping of available models
     _model_mapping = {
         "open_unmix": OpenUnmix,
         "hybrid_demucs": HybridDemucs,
         "ht_demucs": HTDemucs,
+        "dttnet": DTTNet,
         # "banquet": Banquet,
     }
 

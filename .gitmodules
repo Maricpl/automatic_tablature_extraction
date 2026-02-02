@@ -1,0 +1,3 @@
+[submodule "DTTNetPytorch"]
+	path = DTTNetPytorch
+	url = https://github.com/junyuchen-cjy/DTTNet-Pytorch
