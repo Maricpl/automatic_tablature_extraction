@@ -1,4 +1,4 @@
-from tablature_extraction.source_separation import SeparationHub, OpenUnmix, HybridDemucs, HTDemucs, DTTNet, BandSplitRNN
+from tablature_extraction.source_separation import SeparationHub, OpenUnmix, HybridDemucs, HTDemucs, DTTNet, BandSplitRNN, HTDemucsFT, HTDemucsGuitar
 import os
 import pytest
 
@@ -11,6 +11,8 @@ def test_separation_hub():
         "open_unmix",
         "hybrid_demucs",
         "ht_demucs",
+        "ht_demucs_ft",
+        "ht_demucs_guitar",
         "dttnet",
         "bandsplitrnn",
     ]
@@ -50,6 +52,36 @@ def test_ht_demucs(output_dir):
     
     model = HTDemucs(output_dir + "ht_demucs/")
     assert model.model_name == "ht_demucs"
+
+    # Run on example.wav
+    separated_sources = model.separate("data/example.wav")
+
+    assert all(stem in ["vocals", "drums", "bass", "other"] for stem in separated_sources)
+    
+    for stem, path in separated_sources.items():
+        assert os.path.isfile(path)
+        assert path.endswith(".wav")
+
+def test_ht_demucs_ft(output_dir):
+    """Test the HT Demucs fine-tuned separation model."""
+    
+    model = HTDemucsFT(output_dir + "ht_demucs_ft/")
+    assert model.model_name == "ht_demucs_ft"
+
+    # Run on example.wav
+    separated_sources = model.separate("data/example.wav")
+
+    assert all(stem in ["vocals", "drums", "bass", "other"] for stem in separated_sources)
+    
+    for stem, path in separated_sources.items():
+        assert os.path.isfile(path)
+        assert path.endswith(".wav")
+
+def test_ht_demucs_guitar(output_dir):
+    """Test the HT Demucs separation model."""
+    
+    model = HTDemucsGuitar(output_dir + "ht_demucs_guitar/")
+    assert model.model_name == "ht_demucs_guitar"
 
     # Run on example.wav
     separated_sources = model.separate("data/example.wav")

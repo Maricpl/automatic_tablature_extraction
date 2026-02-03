@@ -103,12 +103,10 @@ class OpenUnmix(SeparationModel):
         
         return result
 
-
-
-
 class HybridDemucs(SeparationModel):
-    def __init__(self, output_dir: str = None):
-        super().__init__(model_name="hybrid_demucs", output_dir=output_dir)
+    def __init__(self, output_dir: str = None, model_name: str = "hybrid_demucs", demucs_model: str = "hdemucs_mmi"):
+        super().__init__(model_name=model_name, output_dir=output_dir)
+        self.separator = demucs_api.Separator(model = demucs_model)
 
     def separate(self, audio_file: str) -> dict:
         """
@@ -118,130 +116,31 @@ class HybridDemucs(SeparationModel):
         :return: Dictionary containing separated sources.
         """
 
-        def separate_sources(
-            model,
-            mix,
-            segment=10.0,
-            overlap=0.1,
-            device=None,
-            sample_rate=44100,
-        ):
-            """
-            Apply model to a given mixture. Use fade, and add segments together in order to add model segment by segment.
-
-            Args:
-                segment (int): segment length in seconds
-                device (torch.device, str, or None): if provided, device on which to
-                    execute the computation, otherwise `mix.device` is assumed.
-                    When `device` is different from `mix.device`, only local computations will
-                    be on `device`, while the entire tracks will be stored on `mix.device`.
-            """
-            if device is None:
-                device = mix.device
-            else:
-                device = torch.device(device)
-
-            batch, channels, length = mix.shape
-
-            chunk_len = int(sample_rate * segment * (1 + overlap))
-            start = 0
-            end = chunk_len
-            overlap_frames = overlap * sample_rate
-            fade = Fade(
-                fade_in_len=0, fade_out_len=int(overlap_frames), fade_shape="linear"
-            )
-
-            final = torch.zeros(
-                batch, len(model.sources), channels, length, device=device
-            )
-
-            while start < length - overlap_frames:
-                chunk = mix[:, :, start:end]
-                with torch.no_grad():
-                    out = model.forward(chunk)
-                out = fade(out)
-                final[:, :, :, start:end] += out
-                if start == 0:
-                    fade.fade_in_len = int(overlap_frames)
-                    start += int(chunk_len - overlap_frames)
-                else:
-                    start += chunk_len
-                end += chunk_len
-                if end >= length:
-                    fade.fade_out_len = 0
-            return final
-
-        bundle = HDEMUCS_HIGH_MUSDB_PLUS
-
-        model = bundle.get_model()
-
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-        model.to(device)
-
-        waveform, sample_rate = torchaudio.load(audio_file)
-        if waveform.shape[0] == 1:
-            waveform = waveform.repeat(2, 1)
-
-        # print(song)
-        # display(Audio(waveform, rate=sample_rate))
-
-        waveform = waveform.to(device)
-        mixture = waveform
-
-        segment: int = 10
-        overlap = 0.1
-
-        ref = waveform.mean(0)
-        waveform = (waveform - ref.mean()) / ref.std()  # normalization
-
-        sources = separate_sources(
-            model,
-            waveform[None],
-            device=device,
-            segment=segment,
-            overlap=overlap,
-        )[0]
-        sources = sources * ref.std() + ref.mean()
-
-        sources_list = model.sources
-        sources = list(sources)
-
-        audios = dict(zip(sources_list, sources))
-
-        result = {}
-
-        out_path = self.output_dir + audio_file.split("/")[-1].split(".")[0]
-        os.makedirs(out_path, exist_ok=True)
-        for source, audio in audios.items():
-            # print(source)
-            audio = audio.detach().cpu().numpy()[0]
-            audio = np.int16(audio / np.max(np.abs(audio)) * 32767)
-            # display(Audio(audio, rate=sample_rate))
-            write(f"{out_path}/{source}.wav", sample_rate, audio)
-            print(f"Saved {source} to {out_path}/{source}.wav")
-            result[source] = f"{out_path}/{source}.wav"
-
-        return result
-    
-class HTDemucs(SeparationModel):
-    def __init__(self, output_dir: str = None):
-        super().__init__(model_name="ht_demucs", output_dir=output_dir)
-
-    def separate(self, audio_file: str) -> dict:
-        separator = demucs_api.Separator(model = "htdemucs_6s", shifts=1, overlap=0.25, progress=True)
-        origin, separated = separator.separate_audio_file(audio_file)
+        origin, separated = self.separator.separate_audio_file(audio_file)
 
         result = {}
         out_path = self.output_dir + audio_file.split("/")[-1].split(".")[0]
         os.makedirs(out_path, exist_ok=True)
 
         for stem, audio in separated.items():
-            demucs_api.save_audio(audio, f"{out_path}/{stem}.wav", samplerate=separator.samplerate)
+            demucs_api.save_audio(audio, f"{out_path}/{stem}.wav", samplerate=self.separator.samplerate)
 
         result[stem] = f"{out_path}/{stem}.wav"
 
         return result
+    
+class HTDemucs(HybridDemucs):
+    def __init__(self, output_dir: str = None):
+        super().__init__(output_dir=output_dir, model_name="ht_demucs", demucs_model="htdemucs")
+
+class HTDemucsFT(HybridDemucs):
+    def __init__(self, output_dir: str = None):
+        super().__init__(output_dir=output_dir, model_name="ht_demucs_ft", demucs_model="htdemucs_ft")
+
+class HTDemucsGuitar(HybridDemucs):
+    def __init__(self, output_dir: str = None):
+        super().__init__(output_dir=output_dir, model_name="ht_demucs_guitar", demucs_model="htdemucs_6s")
+
 
 class DTTNet(SeparationModel):
     """Wrapper for DTTNet (Dual-Path TFC-TDF UNet) source separation model."""
@@ -402,6 +301,8 @@ class SeparationHub(SeparationModel):
         "open_unmix": OpenUnmix,
         "hybrid_demucs": HybridDemucs,
         "ht_demucs": HTDemucs,
+        "ht_demucs_ft": HTDemucsFT,
+        "ht_demucs_guitar": HTDemucsGuitar,
         "dttnet": DTTNet,
         "bandsplitrnn": BandSplitRNN,
         # "banquet": Banquet,
