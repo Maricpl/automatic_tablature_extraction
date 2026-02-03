@@ -19,7 +19,11 @@ There's a need to set the environment variable SKLEARN_ALLOW_DEPRECATED_SKLEARN_
 Apply git patch for submodules:
 ```bash
 cd DTTNetPytorch
-git patch ../DTTNetPytorch_imports.patch
+git apply ../DTTNetPytorch_imports.patch
+cd ..
+
+cd BandSplitRNN
+git apply ../BandSplitRNN_imports.patch
 cd ..
 ```
 

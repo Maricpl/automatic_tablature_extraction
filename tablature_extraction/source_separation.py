@@ -16,10 +16,8 @@ from pathlib import Path
 import soundfile as sf
 from omegaconf import OmegaConf
 
-sys.path.append('BandSplitRNN/src')
 from BandSplitRNN.src.separator import Separator
 
-sys.path.append('DTTNetPytorch')
 from DTTNetPytorch.src.dp_tdf.dp_tdf_net import DPTDFNet
 from DTTNetPytorch.src.evaluation.separate import separate_with_ckpt_TDF
 from DTTNetPytorch.src.utils.utils import load_wav
