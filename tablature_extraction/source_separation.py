@@ -17,7 +17,6 @@ from BandSplitRNN.src.separator import Separator
 
 from DTTNetPytorch.src.dp_tdf.dp_tdf_net import DPTDFNet
 from DTTNetPytorch.src.evaluation.separate import separate_with_ckpt_TDF
-from DTTNetPytorch.src.utils.utils import load_wav
 
 from MSS_Training.utils.settings import get_model_from_config, load_config
 from MSS_Training.utils.model_utils import load_start_checkpoint, demix, apply_tta
@@ -44,6 +43,21 @@ class SeparationModel(ABC):
         :return: Dictionary containing separated sources.
         """
         pass
+
+    def _preprocess_audio(self, y: np.ndarray, sr: int, target_sr: int, target_channels: int):
+        if sr != target_sr:
+            y = lr.resample(y, orig_sr=sr, target_sr=target_sr)
+        
+        if y.ndim == 1:
+            y = np.stack([y, y], axis=0)
+
+        if target_channels == 1 and y.shape[0] == 2:
+            y = lr.to_mono(y)
+        
+        if target_channels == 2 and y.shape[0] == 1:
+            y = np.concatenate([y, y], axis=0)
+
+        return torch.as_tensor(y).float()
 
     def plot_spectrogram(self, audio_file: str):
         """
@@ -86,9 +100,10 @@ class OpenUnmix(SeparationModel):
         use_cuda = torch.cuda.is_available()
         device = torch.device("cuda" if use_cuda else "cpu")
 
-        y, sr = lr.load(audio_file, sr=None)
+        y, sr = lr.load(audio_file, sr=None, mono=False)
+        y = self._preprocess_audio(y, sr, 44100, 2)
 
-        estimates = predict.separate(torch.as_tensor(y).float(), rate=sr, device=device)
+        estimates = predict.separate(y, rate=44100, device=device)
         out_path = self.output_dir + audio_file.split("/")[-1].split(".")[0]
         os.makedirs(out_path, exist_ok=True)
 
@@ -190,7 +205,6 @@ class DTTNet(SeparationModel):
         )
         
         self.separate_with_ckpt = separate_with_ckpt_TDF
-        self.load_wav = load_wav
     
     def separate(self, audio_file: str) -> dict:
         """
@@ -206,11 +220,8 @@ class DTTNet(SeparationModel):
             )
         
         # Load audio
-        mix = self.load_wav(audio_file)
-
-        # Create stereo
-        if mix.ndim == 1:
-            mix = np.stack([mix, mix])
+        y, sr = lr.load(audio_file, sr=None, mono=False)
+        mix = self._preprocess_audio(y, sr, 44100, 2).cpu().numpy()
         
         # Separate
         target_wav = self.separate_with_ckpt(
@@ -272,9 +283,8 @@ class BandSplitRNN(SeparationModel):
         :return: Dictionary containing path to separated target stem
         """
         # Load audio
-        mix, sr = torchaudio.load(audio_file)
-        if mix.shape[0] == 1:
-            mix = mix.repeat(2, 1)
+        y, sr = lr.load(audio_file, sr=None, mono=False)
+        mix = self._preprocess_audio(y, sr, 44100, 2)
         mix = mix.to(self.device)
 
         # Separate
@@ -289,235 +299,116 @@ class BandSplitRNN(SeparationModel):
         os.makedirs(out_path, exist_ok=True)
         
         output_file = os.path.join(out_path, f"{self.target}.wav")
-        sf.write(output_file, target_wav.T, sr)
+        sf.write(output_file, target_wav.T, 44100)
         
         print(f"Saved {self.target} to {output_file}")
         
         return {self.target: output_file}
 
 
-class BSRoformer(SeparationModel):
+class MSSModel(SeparationModel):
+    def __init__(self, model_name: str, model_type: str, output_dir: str = None, ckpt_path: str = None, config_path: str = None):
+        super().__init__(model_name=model_name, output_dir=output_dir)
+        self.ckpt_path = ckpt_path
+        self.config_path = config_path
+        self.model_type = model_type
+
+        self.model, self.config = get_model_from_config(self.model_type, self.config_path)
+        
+        class Args:
+            start_check_point = self.ckpt_path
+            lora_checkpoint_loralib = None
+            model_type = self.model_type
+
+        checkpoint = torch.load(self.ckpt_path, map_location='cuda')
+        load_start_checkpoint(Args(), self.model, checkpoint, type_='inference')
+
+        self.device = "cpu"
+        if torch.cuda.is_available():
+            self.device = 'cuda'
+        
+        self.model = self.model.to(self.device)
+        self.model.eval()
+
+    def separate(self, audio_file: str) -> dict:
+        sample_rate = getattr(self.config.audio, "sample_rate", 44100)
+        
+        mix, sr = lr.load(audio_file, sr=sample_rate, mono=False)
+
+        if len(mix.shape) == 1:
+            mix = np.expand_dims(mix, axis=0)
+            if "num_channels" in self.config.audio:
+                if self.config.audio["num_channels"] == 2:
+                    mix = np.concatenate([mix, mix], axis=0)
+
+        norm_params = None
+        if "normalize" in self.config.inference:
+            if self.config.inference["normalize"] is True:
+                mix, norm_params = normalize_audio(mix)
+
+        waveforms = demix(
+            self.config,
+            self.model,
+            mix,
+            self.device,
+            model_type=self.model_type,
+        )
+
+        waveforms = apply_tta(
+            self.config,
+            self.model,
+            mix,
+            waveforms,
+            self.device,
+            self.model_type
+        )
+
+        instruments = self.config.training.instruments
+        result = {}
+        out_path = os.path.join(self.output_dir, os.path.splitext(os.path.basename(audio_file))[0])
+        os.makedirs(out_path, exist_ok=True)
+
+        for instr in instruments:
+            estimates = waveforms[instr]
+            if "normalize" in self.config.inference:
+                if self.config.inference["normalize"] is True:
+                    estimates = denormalize_audio(estimates, norm_params)
+            
+            output_file = os.path.join(out_path, f"{instr}.wav")
+            sf.write(output_file, estimates.T, sample_rate)
+            result[instr] = output_file
+        
+        return result
+
+class BSRoformer(MSSModel):
     def __init__(self, output_dir: str = None, ckpt_path: str = "models/model_bs_roformer_ep_17_sdr_9.6568.ckpt", config_path: str = "configs/bs_roformer_config.yml"):
-        super().__init__(model_name="bs_roformer", output_dir=output_dir)
-        self.ckpt_path = ckpt_path
-        self.config_path = config_path
-        self.model_type = "bs_roformer"
-
-        self.model, self.config = get_model_from_config(self.model_type, self.config_path)
-        
-        class Args:
-            start_check_point = self.ckpt_path
-            lora_checkpoint_loralib = None
-            model_type = self.model_type
-
-        checkpoint = torch.load(self.ckpt_path, map_location='cuda')
-        load_start_checkpoint(Args(), self.model, checkpoint, type_='inference')
-
-        self.device = "cpu"
-        if torch.cuda.is_available():
-            self.device = 'cuda'
-        
-        self.model = self.model.to(self.device)
-        self.model.eval()
-
-    def separate(self, audio_file: str) -> dict:
-        sample_rate = getattr(self.config.audio, "sample_rate", 44100)
-        
-        mix, sr = lr.load(audio_file, sr=sample_rate, mono=False)
-
-        if len(mix.shape) == 1:
-            mix = np.expand_dims(mix, axis=0)
-            if "num_channels" in self.config.audio:
-                if self.config.audio["num_channels"] == 2:
-                    mix = np.concatenate([mix, mix], axis=0)
-
-        norm_params = None
-        if "normalize" in self.config.inference:
-            if self.config.inference["normalize"] is True:
-                mix, norm_params = normalize_audio(mix)
-
-        waveforms = demix(
-            self.config,
-            self.model,
-            mix,
-            self.device,
-            model_type=self.model_type,
+        super().__init__(
+            model_name="bs_roformer",
+            model_type="bs_roformer",
+            output_dir=output_dir,
+            ckpt_path=ckpt_path,
+            config_path=config_path
         )
 
-        waveforms = apply_tta(
-            self.config,
-            self.model,
-            mix,
-            waveforms,
-            self.device,
-            self.model_type
-        )
-
-        instruments = self.config.training.instruments
-        result = {}
-        out_path = os.path.join(self.output_dir, os.path.splitext(os.path.basename(audio_file))[0])
-        os.makedirs(out_path, exist_ok=True)
-
-        for instr in instruments:
-            estimates = waveforms[instr]
-            if "normalize" in self.config.inference:
-                if self.config.inference["normalize"] is True:
-                    estimates = denormalize_audio(estimates, norm_params)
-            
-            output_file = os.path.join(out_path, f"{instr}.wav")
-            sf.write(output_file, estimates.T, sample_rate)
-            result[instr] = output_file
-        
-        return result
-    
-class MelBandRoformer(SeparationModel):
+class MelBandRoformer(MSSModel):
     def __init__(self, output_dir: str = None, ckpt_path: str = "models/model_mel_band_roformer_ep_1_sdr_8.2175.ckpt", config_path: str = "configs/mel_band_roformer.yml"):
-        super().__init__(model_name="mel_band_roformer", output_dir=output_dir)
-        self.ckpt_path = ckpt_path
-        self.config_path = config_path
-        self.model_type = "mel_band_roformer"
-
-        self.model, self.config = get_model_from_config(self.model_type, self.config_path)
-        
-        class Args:
-            start_check_point = self.ckpt_path
-            lora_checkpoint_loralib = None
-            model_type = self.model_type
-
-        checkpoint = torch.load(self.ckpt_path, map_location='cuda')
-        load_start_checkpoint(Args(), self.model, checkpoint, type_='inference')
-
-        self.device = "cpu"
-        if torch.cuda.is_available():
-            self.device = 'cuda'
-        
-        self.model = self.model.to(self.device)
-        self.model.eval()
-
-    def separate(self, audio_file: str) -> dict:
-        sample_rate = getattr(self.config.audio, "sample_rate", 44100)
-        
-        mix, sr = lr.load(audio_file, sr=sample_rate, mono=False)
-
-        if len(mix.shape) == 1:
-            mix = np.expand_dims(mix, axis=0)
-            if "num_channels" in self.config.audio:
-                if self.config.audio["num_channels"] == 2:
-                    mix = np.concatenate([mix, mix], axis=0)
-
-        norm_params = None
-        if "normalize" in self.config.inference:
-            if self.config.inference["normalize"] is True:
-                mix, norm_params = normalize_audio(mix)
-
-        waveforms = demix(
-            self.config,
-            self.model,
-            mix,
-            self.device,
-            model_type=self.model_type,
+        super().__init__(
+            model_name="mel_band_roformer",
+            model_type="mel_band_roformer",
+            output_dir=output_dir,
+            ckpt_path=ckpt_path,
+            config_path=config_path
         )
 
-        waveforms = apply_tta(
-            self.config,
-            self.model,
-            mix,
-            waveforms,
-            self.device,
-            self.model_type
-        )
-
-        instruments = self.config.training.instruments
-        result = {}
-        out_path = os.path.join(self.output_dir, os.path.splitext(os.path.basename(audio_file))[0])
-        os.makedirs(out_path, exist_ok=True)
-
-        for instr in instruments:
-            estimates = waveforms[instr]
-            if "normalize" in self.config.inference:
-                if self.config.inference["normalize"] is True:
-                    estimates = denormalize_audio(estimates, norm_params)
-            
-            output_file = os.path.join(out_path, f"{instr}.wav")
-            sf.write(output_file, estimates.T, sample_rate)
-            result[instr] = output_file
-        
-        return result
-    
-
-class SCNet(SeparationModel):
+class SCNet(MSSModel):
     def __init__(self, output_dir: str = None, ckpt_path: str = "models/model_scnet_masked_ep_111_sdr_9.8286.ckpt", config_path: str = "configs/scnet_config.yml"):
-        super().__init__(model_name="scnet", output_dir=output_dir)
-        self.ckpt_path = ckpt_path
-        self.config_path = config_path
-        self.model_type = "scnet_masked"
-
-        self.model, self.config = get_model_from_config(self.model_type, self.config_path)
-        
-        class Args:
-            start_check_point = self.ckpt_path
-            lora_checkpoint_loralib = None
-            model_type = self.model_type
-
-        checkpoint = torch.load(self.ckpt_path, map_location='cuda')
-        load_start_checkpoint(Args(), self.model, checkpoint, type_='inference')
-
-        self.device = "cpu"
-        if torch.cuda.is_available():
-            self.device = 'cuda'
-        
-        self.model = self.model.to(self.device)
-        self.model.eval()
-
-    def separate(self, audio_file: str) -> dict:
-        sample_rate = getattr(self.config.audio, "sample_rate", 44100)
-        
-        mix, sr = lr.load(audio_file, sr=sample_rate, mono=False)
-
-        if len(mix.shape) == 1:
-            mix = np.expand_dims(mix, axis=0)
-            if "num_channels" in self.config.audio:
-                if self.config.audio["num_channels"] == 2:
-                    mix = np.concatenate([mix, mix], axis=0)
-
-        norm_params = None
-        if "normalize" in self.config.inference:
-            if self.config.inference["normalize"] is True:
-                mix, norm_params = normalize_audio(mix)
-
-        waveforms = demix(
-            self.config,
-            self.model,
-            mix,
-            self.device,
-            model_type=self.model_type,
+        super().__init__(
+            model_name="scnet",
+            model_type="scnet_masked",
+            output_dir=output_dir,
+            ckpt_path=ckpt_path,
+            config_path=config_path
         )
-
-        waveforms = apply_tta(
-            self.config,
-            self.model,
-            mix,
-            waveforms,
-            self.device,
-            self.model_type
-        )
-
-        instruments = self.config.training.instruments
-        result = {}
-        out_path = os.path.join(self.output_dir, os.path.splitext(os.path.basename(audio_file))[0])
-        os.makedirs(out_path, exist_ok=True)
-
-        for instr in instruments:
-            estimates = waveforms[instr]
-            if "normalize" in self.config.inference:
-                if self.config.inference["normalize"] is True:
-                    estimates = denormalize_audio(estimates, norm_params)
-            
-            output_file = os.path.join(out_path, f"{instr}.wav")
-            sf.write(output_file, estimates.T, sample_rate)
-            result[instr] = output_file
-        
-        return result
 
 
 class SeparationHub(SeparationModel):

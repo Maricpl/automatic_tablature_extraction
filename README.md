@@ -25,6 +25,10 @@ cd ..
 cd BandSplitRNN
 git apply ../BandSplitRNN_imports.patch
 cd ..
+
+cd MSS_Trainer
+git apply ../MSS_Trainer_imports.patch
+cd ..
 ```
 ## Downloading checkpoints
 DTTNet model checkpoints can be downloaded from https://mega.nz/folder/E4c1QD7Z#OkgM_dEK1tC5MzpqEBuxvQ and should be unzipped to in models/dtt/.
