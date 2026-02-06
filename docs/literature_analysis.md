@@ -16,12 +16,13 @@ Separated into 2 main parts Music Source Separation and Automatic Music Transcri
 | **KUIELab-MDX-Net** | KUIELab-MDX-Net: A Two-Stream Neural Network for Music Demixing | 2021 | **Kim et al.** <br> Winning solution for MDX 2021; ensemble of TFC-TDF-U-Net and Demucs. | ✅ another demucs version | partly |
 | **TFC-TDF-U-Net** | KUIELab-MDX-Net (TFC-TDF-U-Net) | 2021 | **Choi et al.** <br> Time-Frequency Convolutions and Time-Distributed Fully-connected U-Net. | ✅ another demucs version| partly |
 | **Band-split RNN** | Music Source Separation with Band-split RNN | 2022 | **Luo & Yu** <br> Splits spectrogram into subbands processed by RNNs for fine-grained modeling. | ✅ | ✅ |
-| **Mel-Band RoFormer** | Mel-Band RoFormer for Music Source Separation | 2023 | **Wang et al.** <br> Transformer with Rotary Embeddings & Mel-band split; SOTA performance. | Todo | ❌|
-| **Band-Split RoPE Transformer** | MUSIC SOURCE SEPARATION WITH BAND-SPLIT ROPE TRANSFORMER | 2023 | **Lu et al.** <br> Replaces RNN in Band-Split model with Transformers; MDX23 winner. | Todo | ❌|
+| **Mel-Band RoFormer** | Mel-Band RoFormer for Music Source Separation | 2023 | **Wang et al.** <br> Transformer with Rotary Embeddings & Mel-band split; SOTA performance. | ✅ | ❌|
+| **Band-Split RoPE Transformer** | MUSIC SOURCE SEPARATION WITH BAND-SPLIT ROPE TRANSFORMER | 2023 | **Lu et al.** <br> Replaces RNN in Band-Split model with Transformers; MDX23 winner. | ✅ | ❌|
 | **Hybrid Transformer Demucs** | HYBRID TRANSFORMERS FOR MUSIC SOURCE SEPARATION | 2023 | **Rouard et al.** <br> HT Demucs; adds Transformer layers to the Hybrid Demucs architecture. | ✅ | ✅ |
-| **SCNet** | SCNet: Sparse Compression Network for Music Source Separation | 2024 | **Tong et al.** <br> Uses sparse compression for efficient and high-quality separation. | Todo | ❌|
+| **SCNet** | SCNet: Sparse Compression Network for Music Source Separation | 2024 | **Tong et al.** <br> Uses sparse compression for efficient and high-quality separation. | ✅ | ❌|
 | **Dual-Path TFC-TDF UNet** | | | | ✅ | ❌|
-| **A Stem-Agnostic System** | A Stem-Agnostic Single-Decoder System for Music Source Separation Beyond Four Stems | 2024 | **Watcharasupat & Lerch** <br> Single decoder architecture for arbitrary stem separation. | Todo |Todo |
+| ** TFC-TDF UNet v3** | | | | ✅ worse metrics on other | ❌|
+| **A Stem-Agnostic System** | A Stem-Agnostic Single-Decoder System for Music Source Separation Beyond Four Stems | 2024 | **Watcharasupat & Lerch** <br> Single decoder architecture for arbitrary stem separation. | ✅ wont |Todo |
 | **Multi-Source Diffusion Models** | Multi-Source Diffusion Models for Simultaneous Music Generation and Separation | 2024 | **Mariani et al.** (ICLR) <br> Applies diffusion models to jointly generate and separate sources. | ❌|❌|
 | **MAJL** | MAJL: A Model-Agnostic Joint Learning Framework for Music Source Separation and Pitch Estimation | 2024 | **Wei et al.** <br> Jointly learns separation and pitch estimation to improve both tasks. | ❌| ❌|
 | **GASS** | GASS – Generalizing Audio Source Separation with Large-scale Data | 2024 | **Pons et al.** <br> Focuses on generalizing separation across domains using massive datasets. | ❌| ❌|

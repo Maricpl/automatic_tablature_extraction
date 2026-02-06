@@ -1,0 +1,20 @@
+source_separation:
+  enabled: true
+  model_name: "demucs"
+  parameters:
+    segment: 10
+    overlap: 0.1
+
+preprocessing:
+  normalize: true
+  resample_rate: 44100
+
+transcription:
+  model_name: "basic_pitch"
+  parameters:
+    threshold: 0.5
+
+tablature_generation:
+  model_name: "tayuya"
+  parameters:
+    tuning: "standard"

@@ -15,6 +15,9 @@ def test_separation_hub():
         "ht_demucs_guitar",
         "dttnet",
         "bandsplitrnn",
+        "bs_roformer",
+        "mel_band_roformer",
+        "scnet"
     ]
 
 def test_open_unmix(output_dir):
@@ -121,7 +124,49 @@ def test_bandsplitrnn(output_dir):
     assert "other" in separated_sources
 
     for stem, path in separated_sources.items():
-        print(path)
         assert os.path.isfile(path)
         assert path.endswith(".wav")
+
+def test_bs_roformer(output_dir):
+    """Test the BS Roformer separation model."""
+
+    model = SeparationHub(model_name="bs_roformer", output_dir=output_dir + "bs_roformer/")
+    
+    # Run on example.wav
+    separated_sources = model.separate("data/example.wav")
+
+    assert all(stem in ["vocals", "drums", "bass", "other"] for stem in separated_sources)
+
+    for stem, path in separated_sources.items():
+        assert os.path.isfile(path)
+        assert path.endswith(".wav")
+
+def test_mel_band_roformer(output_dir):
+    """Test the Mel-Band RoFormer separation model."""
+
+    model = SeparationHub(model_name="mel_band_roformer", output_dir=output_dir + "mel_band_roformer/")
+    
+    # Run on example.wav
+    separated_sources = model.separate("data/example.wav")
+
+    assert all(stem in ["vocals", "drums", "bass", "other"] for stem in separated_sources)
+
+    for stem, path in separated_sources.items():
+        assert os.path.isfile(path)
+        assert path.endswith(".wav")
+
+def test_scnet(output_dir):
+    """Test the SCNet separation model."""
+
+    model = SeparationHub(model_name="scnet", output_dir=output_dir + "scnet/")
+    
+    # Run on example.wav
+    separated_sources = model.separate("data/example.wav")
+
+    assert all(stem in ["vocals", "drums", "bass", "other"] for stem in separated_sources)
+
+    for stem, path in separated_sources.items():
+        assert os.path.isfile(path)
+        assert path.endswith(".wav")
+
 

@@ -2,5 +2,8 @@
 	path = DTTNetPytorch
 	url = https://github.com/junyuchen-cjy/DTTNet-Pytorch
 [submodule "BandSplitRNN"]
-	path = BandSplitRNN
+	path = BandSplitRNN 
 	url = https://github.com/crlandsc/Music-Demixing-with-Band-Split-RNN
+[submodule "MSS_Training"]
+	path = MSS_Training
+	url = https://github.com/ZFTurbo/Music-Source-Separation-Training

@@ -26,11 +26,12 @@ cd BandSplitRNN
 git apply ../BandSplitRNN_imports.patch
 cd ..
 ```
-
-
+## Downloading checkpoints
+DTTNet model checkpoints can be downloaded from https://mega.nz/folder/E4c1QD7Z#OkgM_dEK1tC5MzpqEBuxvQ and should be unzipped to in models/dtt/.
 
 BSRNN model checkpoit for other stem can be downloaded from https://huggingface.co/crlandsc/bsrnn-other/tree/main and should be placed in BandSplitRNN/src/saved_models/other/
 
+Some models were trained by community and shared via https://github.com/ZFTurbo/Music-Source-Separation-Training/blob/main/docs/pretrained_models.md. Downloaded checkpoints should be placed in models/ dir.
 # Tests
 run with
 ```bash

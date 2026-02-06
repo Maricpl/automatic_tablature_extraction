@@ -1,0 +1,264 @@
+diff --git a/models/bs_roformer/__init__.py b/models/bs_roformer/__init__.py
+index d6923b6..fad7902 100644
+--- a/models/bs_roformer/__init__.py
++++ b/models/bs_roformer/__init__.py
+@@ -1,4 +1,4 @@
+-from models.bs_roformer.bs_roformer import BSRoformer
+-from models.bs_roformer.bs_conformer import BSConformer
+-from models.bs_roformer.mel_band_roformer import MelBandRoformer
+-from models.bs_roformer.mel_band_conformer import MelBandConformer
++from MSS_Training.models.bs_roformer.bs_roformer import BSRoformer
++from MSS_Training.models.bs_roformer.bs_conformer import BSConformer
++from MSS_Training.models.bs_roformer.mel_band_roformer import MelBandRoformer
++from MSS_Training.models.bs_roformer.mel_band_conformer import MelBandConformer
+diff --git a/models/bs_roformer/bs_conformer.py b/models/bs_roformer/bs_conformer.py
+index 5710d36..1395ca7 100644
+--- a/models/bs_roformer/bs_conformer.py
++++ b/models/bs_roformer/bs_conformer.py
+@@ -5,12 +5,12 @@ from torch import nn, einsum, tensor, Tensor
+ from torch.nn import Module, ModuleList
+ import torch.nn.functional as F
+ 
+-from models.bs_roformer.attend import Attend
++from MSS_Training.models.bs_roformer.attend import Attend
+ 
+ from torch.utils.checkpoint import checkpoint
+ 
+ from beartype.typing import Tuple, Optional, List, Callable
+-from beartype import beartype
++# from beartype import beartype
+ 
+ from rotary_embedding_torch import RotaryEmbedding
+ 
+@@ -134,7 +134,7 @@ class LinearAttention(Module):
+     """
+     https://arxiv.org/abs/2106.09681 (El-Nouby et al.)
+     """
+-    @beartype
++    #@beartype
+     def __init__(
+         self,
+         *,
+@@ -345,7 +345,7 @@ class Conformer(Module):
+ # bandsplit module
+ 
+ class BandSplit(Module):
+-    @beartype
++    #@beartype
+     def __init__(self, dim, dim_inputs: Tuple[int, ...]):
+         super().__init__()
+         self.dim_inputs = dim_inputs
+@@ -386,7 +386,7 @@ def MLP(
+ 
+ 
+ class MaskEstimator(Module):
+-    @beartype
++    #@beartype
+     def __init__(self, dim, dim_inputs: Tuple[int, ...], depth, mlp_expansion_factor = 4):
+         super().__init__()
+         self.dim_inputs = dim_inputs
+@@ -422,7 +422,7 @@ DEFAULT_FREQS_PER_BANDS = (
+ )
+ 
+ class BSConformer(Module):
+-    @beartype
++    #@beartype
+     def __init__(
+         self,
+         dim,
+diff --git a/models/bs_roformer/bs_roformer.py b/models/bs_roformer/bs_roformer.py
+index 9a62355..f9c2dd2 100644
+--- a/models/bs_roformer/bs_roformer.py
++++ b/models/bs_roformer/bs_roformer.py
+@@ -5,12 +5,12 @@ from torch import nn, einsum, tensor, Tensor
+ from torch.nn import Module, ModuleList
+ import torch.nn.functional as F
+ 
+-from models.bs_roformer.attend import Attend
++from MSS_Training.models.bs_roformer.attend import Attend
+ 
+ from torch.utils.checkpoint import checkpoint
+ 
+ from beartype.typing import Tuple, Optional, List, Callable
+-from beartype import beartype
++# from beartype import beartype
+ 
+ from rotary_embedding_torch import RotaryEmbedding
+ 
+@@ -147,7 +147,7 @@ class LinearAttention(Module):
+     this flavor of linear attention proposed in https://arxiv.org/abs/2106.09681 by El-Nouby et al.
+     """
+ 
+-    @beartype
++    # @beartype
+     def __init__(
+             self,
+             *,
+@@ -255,7 +255,7 @@ class Transformer(Module):
+ # bandsplit module
+ 
+ class BandSplit(Module):
+-    @beartype
++    # @beartype
+     def __init__(
+             self,
+             dim,
+@@ -310,7 +310,7 @@ def MLP(
+ 
+ 
+ class MaskEstimator(Module):
+-    @beartype
++    # @beartype
+     def __init__(
+             self,
+             dim,
+@@ -361,7 +361,7 @@ DEFAULT_FREQS_PER_BANDS = (
+ 
+ class BSRoformer(Module):
+ 
+-    @beartype
++    # @beartype
+     def __init__(
+             self,
+             dim,
+diff --git a/models/bs_roformer/mel_band_conformer.py b/models/bs_roformer/mel_band_conformer.py
+index 47cbfd3..b75ae04 100644
+--- a/models/bs_roformer/mel_band_conformer.py
++++ b/models/bs_roformer/mel_band_conformer.py
+@@ -5,12 +5,12 @@ from torch import nn, einsum, tensor, Tensor
+ from torch.nn import Module, ModuleList
+ import torch.nn.functional as F
+ 
+-from models.bs_roformer.attend import Attend
++from MSS_Training.models.bs_roformer.attend import Attend
+ 
+ from torch.utils.checkpoint import checkpoint
+ 
+ from beartype.typing import Tuple, Optional, List, Callable
+-from beartype import beartype
++#from beartype import beartype
+ 
+ from rotary_embedding_torch import RotaryEmbedding
+ 
+@@ -136,7 +136,7 @@ class LinearAttention(Module):
+     """
+     https://arxiv.org/abs/2106.09681 (El-Nouby et al.)
+     """
+-    @beartype
++    #@beartype
+     def __init__(
+         self,
+         *,
+@@ -347,7 +347,7 @@ class Conformer(Module):
+ # bandsplit module
+ 
+ class BandSplit(Module):
+-    @beartype
++    #@beartype
+     def __init__(self, dim, dim_inputs: Tuple[int, ...]):
+         super().__init__()
+         self.dim_inputs = dim_inputs
+@@ -388,7 +388,7 @@ def MLP(
+ 
+ 
+ class MaskEstimator(Module):
+-    @beartype
++    #@beartype
+     def __init__(self, dim, dim_inputs: Tuple[int, ...], depth, mlp_expansion_factor = 4):
+         super().__init__()
+         self.dim_inputs = dim_inputs
+@@ -413,7 +413,7 @@ class MaskEstimator(Module):
+ # main class
+ 
+ class MelBandConformer(Module):
+-    @beartype
++    #@beartype
+     def __init__(
+         self,
+         dim,
+diff --git a/models/bs_roformer/mel_band_roformer.py b/models/bs_roformer/mel_band_roformer.py
+index c64f8e6..d3efe8f 100644
+--- a/models/bs_roformer/mel_band_roformer.py
++++ b/models/bs_roformer/mel_band_roformer.py
+@@ -5,12 +5,12 @@ from torch import nn, einsum, tensor, Tensor
+ from torch.nn import Module, ModuleList
+ import torch.nn.functional as F
+ 
+-from models.bs_roformer.attend import Attend
++from MSS_Training.models.bs_roformer.attend import Attend
+ 
+ from torch.utils.checkpoint import checkpoint
+ 
+ from beartype.typing import Tuple, Optional, List, Callable
+-from beartype import beartype
++#from beartype import beartype
+ 
+ from rotary_embedding_torch import RotaryEmbedding
+ 
+@@ -155,7 +155,7 @@ class LinearAttention(Module):
+     this flavor of linear attention proposed in https://arxiv.org/abs/2106.09681 by El-Nouby et al.
+     """
+ 
+-    @beartype
++    #@beartype
+     def __init__(
+             self,
+             *,
+@@ -263,7 +263,7 @@ class Transformer(Module):
+ # bandsplit module
+ 
+ class BandSplit(Module):
+-    @beartype
++    #@beartype
+     def __init__(
+             self,
+             dim,
+@@ -318,7 +318,7 @@ def MLP(
+ 
+ 
+ class MaskEstimator(Module):
+-    @beartype
++    #@beartype
+     def __init__(
+             self,
+             dim,
+@@ -357,7 +357,7 @@ class MaskEstimator(Module):
+ 
+ class MelBandRoformer(Module):
+ 
+-    @beartype
++    #@beartype
+     def __init__(
+             self,
+             dim,
+diff --git a/utils/settings.py b/utils/settings.py
+index d7ae1b1..6f471b0 100644
+--- a/utils/settings.py
++++ b/utils/settings.py
+@@ -315,7 +315,7 @@ def get_model_from_config(model_type: str, config_path: str) -> Tuple[nn.Module,
+         from models.torchseg_models import Torchseg_Net
+         model = Torchseg_Net(config)
+     elif model_type == 'mel_band_roformer':
+-        from models.bs_roformer import MelBandRoformer
++        from MSS_Training.models.bs_roformer import MelBandRoformer
+         model = MelBandRoformer(**dict(config.model))
+     elif model_type == 'mel_band_conformer':
+         from models.bs_roformer import MelBandConformer
+@@ -324,7 +324,7 @@ def get_model_from_config(model_type: str, config_path: str) -> Tuple[nn.Module,
+         from models.bs_roformer.mel_band_roformer_experimental import MelBandRoformer
+         model = MelBandRoformer(**dict(config.model))
+     elif model_type == 'bs_roformer':
+-        from models.bs_roformer import BSRoformer
++        from MSS_Training.models.bs_roformer import BSRoformer
+         model = BSRoformer(**dict(config.model))
+     elif model_type == 'bs_conformer':
+         from models.bs_roformer import BSConformer
+@@ -360,7 +360,7 @@ def get_model_from_config(model_type: str, config_path: str) -> Tuple[nn.Module,
+         from models.mdx23c_tfc_tdf_v3_with_STHT import TFC_TDF_net
+         model = TFC_TDF_net(config)
+     elif model_type == 'scnet_masked':
+-        from models.scnet.scnet_masked import SCNet
++        from MSS_Training.models.scnet.scnet_masked import SCNet
+         model = SCNet(**config.model)
+     elif model_type == 'conformer':
+         from models.conformer_model import ConformerMSS, NeuralModel
