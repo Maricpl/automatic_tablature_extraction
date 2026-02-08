@@ -7,3 +7,9 @@
 [submodule "MSS_Training"]
 	path = MSS_Training
 	url = https://github.com/ZFTurbo/Music-Source-Separation-Training
+[submodule "guitar_transcription_continous"]
+	path = guitar_transcription_continous
+	url = https://github.com/cwitkowitz/guitar-transcription-continuous
+[submodule "music_transcription"]
+	path = music_transcription
+	url = https://github.com/trimplexx/music-transcription

@@ -76,14 +76,6 @@ class SeparationModel(ABC):
         #fig.tight_layout()
 
         return fig
-    
-    # @abc.abstractmethod
-    # def load_model(self):
-    #     """
-    #     Abstract method to load the separation model.
-    #     """
-    #     pass
-
 
 class OpenUnmix(SeparationModel):
     def __init__(self, output_dir: str = None):
@@ -305,8 +297,9 @@ class BandSplitRNN(SeparationModel):
         
         return {self.target: output_file}
 
-
-class MSSModel(SeparationModel):
+class MSSModel(SeparationModel, ABC):
+    """Wrapper for https://github.com/ZFTurbo/Music-Source-Separation-Training models with weights published by community. 
+    Authors for some architectures dont share weights or share only for vocals stem."""
     def __init__(self, model_name: str, model_type: str, output_dir: str = None, ckpt_path: str = None, config_path: str = None):
         super().__init__(model_name=model_name, output_dir=output_dir)
         self.ckpt_path = ckpt_path
