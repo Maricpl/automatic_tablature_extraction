@@ -1,4 +1,5 @@
-from tablature_extraction.source_separation import SeparationHub, OpenUnmix, HybridDemucs, HTDemucs, DTTNet, BandSplitRNN, HTDemucsFT, HTDemucsGuitar
+from tablature_extraction.source_separation import BSRoformer, MelBandRoformer, SCNet, SeparationHub, OpenUnmix, HybridDemucs, HTDemucs, DTTNet, BandSplitRNN, HTDemucsFT, HTDemucsGuitar
+from tablature_extraction.transcription import TrascriptionHub, BasicPitch, Tayuya, CRNN
 import os
 import pytest
 
@@ -116,7 +117,7 @@ def test_dttnet(output_dir):
 def test_bandsplitrnn(output_dir):
     """Test the BandSplitRNN separation model."""
 
-    model = SeparationHub(model_name="bandsplitrnn", output_dir=output_dir + "bandsplitrnn/")
+    model = BandSplitRNN(output_dir=output_dir + "bandsplitrnn/")
     
     # Run on example.wav
     separated_sources = model.separate("data/example.wav")
@@ -130,7 +131,7 @@ def test_bandsplitrnn(output_dir):
 def test_bs_roformer(output_dir):
     """Test the BS Roformer separation model."""
 
-    model = SeparationHub(model_name="bs_roformer", output_dir=output_dir + "bs_roformer/")
+    model = BSRoformer(output_dir=output_dir + "bs_roformer/")
     
     # Run on example.wav
     separated_sources = model.separate("data/example.wav")
@@ -144,7 +145,7 @@ def test_bs_roformer(output_dir):
 def test_mel_band_roformer(output_dir):
     """Test the Mel-Band RoFormer separation model."""
 
-    model = SeparationHub(model_name="mel_band_roformer", output_dir=output_dir + "mel_band_roformer/")
+    model = MelBandRoformer(output_dir=output_dir + "mel_band_roformer/")
     
     # Run on example.wav
     separated_sources = model.separate("data/example.wav")
@@ -158,7 +159,7 @@ def test_mel_band_roformer(output_dir):
 def test_scnet(output_dir):
     """Test the SCNet separation model."""
 
-    model = SeparationHub(model_name="scnet", output_dir=output_dir + "scnet/")
+    model = SCNet(output_dir=output_dir + "scnet/")
     
     # Run on example.wav
     separated_sources = model.separate("data/example.wav")
@@ -169,4 +170,59 @@ def test_scnet(output_dir):
         assert os.path.isfile(path)
         assert path.endswith(".wav")
 
+def test_transcription_hub_models():
+    assert TrascriptionHub.get_available_models() == [
+        "basic_pitch",
+        "crnn",
+    ]
 
+def test_basic_pitch_transcription(output_dir):
+    audio_file = "data/example.wav"
+    model = BasicPitch(output_dir=os.path.join(output_dir, "basic_pitch"))
+    result = model.transcribe(audio_file)
+
+    assert "midi_path" in result
+    assert "midi_data" in result
+    assert os.path.isfile(result["midi_path"])
+    assert result["midi_path"].endswith(".mid")
+
+def test_tayuya_transcription(output_dir):
+    audio_file = "data/example.wav"
+    basic_pitch = BasicPitch(output_dir=os.path.join(output_dir, "basic_pitch_for_tayuya"))
+    bp_result = basic_pitch.transcribe(audio_file)
+    midi_path = bp_result["midi_path"]
+
+    # Test Tayuya alone
+    tayuya = Tayuya(output_dir=os.path.join(output_dir, "tayuya"), source_model_name="basic_pitch")
+    tayuya_result = tayuya.transcribe(midi_path)
+
+    assert "tabs_path" in tayuya_result
+    assert "tabs_content" in tayuya_result
+    assert os.path.isfile(tayuya_result["tabs_path"])
+    assert tayuya_result["tabs_path"].endswith(".txt")
+    
+    # Test Tayuya with source_model_name
+    tayuya_pipelined = Tayuya(source_model_name="basic_pitch")
+    tayuya_pipelined_result = tayuya_pipelined.transcribe(midi_path)
+    
+    assert "tabs_path" in tayuya_pipelined_result
+    assert os.path.isfile(tayuya_pipelined_result["tabs_path"])
+
+    # The path should be data/results/tayuya/basic_pitch/example/example.txt
+    assert os.path.join("data", "results", "tayuya", "basic_pitch", "example.txt") == tayuya_pipelined_result["tabs_path"]
+
+def test_crnn_transcription(output_dir):
+    audio_file = "data/example.wav"
+    model = CRNN(output_dir=os.path.join(output_dir, "crnn"))
+    result = model.transcribe(audio_file)
+
+    assert "tabs_path" in result
+    assert "tabs_content" in result
+    assert os.path.isfile(result["tabs_path"])
+    assert result["tabs_path"].endswith(".txt")
+
+    # MIDI checks
+    assert "midi_path" in result
+    assert "midi_data" in result
+    assert os.path.isfile(result["midi_path"])
+    assert result["midi_path"].endswith(".mid")

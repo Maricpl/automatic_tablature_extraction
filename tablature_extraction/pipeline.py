@@ -25,7 +25,7 @@ class TablatureGenerationPipeline:
         # Source Separation
         print(f"Separating sources from {audio_path} using {self.source_separation.model.model_name}...")
         stems = self.source_separation.separate(audio_path)
-        guitar_stem = stems["other"]
+        guitar_stem = stems["guitar"] if self.source_separation.model.model_name == "ht_demucs_guitar" else stems["other"]
 
         # Transcription
         print(f"Transcribing guitar stem from {guitar_stem} using {self.transcription.model.model_name}...")
