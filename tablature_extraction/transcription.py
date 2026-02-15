@@ -277,7 +277,7 @@ class TrascriptionHub:
 def get_module_args():
     parser = argparse.ArgumentParser(
         description="Automatic Music Transcription",
-        epilog="Example usage: python -m tablature_extraction.transcription --model basic_pitch --input_path data/results/open_unmix/mettalica_10s/other.wav",
+        epilog="Example usage: python -m tablature_extraction.transcription --model basic_pitch --input_path data/example.wav",
     )
     parser.add_argument(
         "--model",

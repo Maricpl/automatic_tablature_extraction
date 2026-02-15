@@ -31,7 +31,7 @@ class TablatureGenerationPipeline:
 def get_module_args():
     parser = argparse.ArgumentParser(
         description="Tablature Generation Pipeline",
-        epilog="Example usage: python -m tablature_extraction.pipeline --separation_model open_unmix --transcription_model basic_pitch --audio data/songs/mettalica_10s.wav ",
+        epilog="Example usage: python -m tablature_extraction.pipeline --separation_model open_unmix --transcription_model basic_pitch --audio data/example.wav",
     )
     parser.add_argument(
         "--separation_model",

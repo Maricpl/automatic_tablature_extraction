@@ -447,7 +447,7 @@ class SeparationHub(SeparationModel):
 def get_module_args():
     parser = argparse.ArgumentParser(
         description="Audio Source Separation",
-        epilog="Example usage: python -m tablature_extraction.source_separation --model open_unmix --audio_file data/songs/mettalica_10s.wav",
+        epilog="Example usage: python -m tablature_extraction.source_separation --model open_unmix --audio_file data/example.wav",
     )
     parser.add_argument(
         "--model",
