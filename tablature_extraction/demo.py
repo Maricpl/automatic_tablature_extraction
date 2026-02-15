@@ -1,11 +1,11 @@
 import gradio as gr
 from tablature_extraction.source_separation import SeparationHub
-from tablature_extraction.transcription import TrascriptionHub, TablatureTrascriptionHub
+from tablature_extraction.transcription import TrascriptionHub
 from tablature_extraction.pipeline import TablatureGenerationPipeline
 from scipy.io.wavfile import write
 import numpy as np
 
-def inference(input_audio, separation_model, transcription_model, tablature_transcription_model):
+def inference(input_audio, separation_model, transcription_model):
     # create tmp wav, as models use paths instead of samples
     sr, y = input_audio
     tmp_wav = "tmp.wav"
@@ -14,34 +14,38 @@ def inference(input_audio, separation_model, transcription_model, tablature_tran
     pipeline = TablatureGenerationPipeline(
         separation_model=separation_model,
         transcription_model=transcription_model,
-        tablature_transcription_model=tablature_transcription_model,
     )
-    guitar_path, midi_data, tabs = pipeline.inference(tmp_wav)
+    guitar_path, midi_data = pipeline.inference(tmp_wav)
     original_spectrogram = pipeline.source_separation.plot_spectrogram(tmp_wav)
     guitar_spectrogram = pipeline.source_separation.plot_spectrogram(guitar_path)
-    
-    piano_roll = pipeline.transcription.plot_piano_roll(midi_data)
+    midi_obj = midi_data["midi_data"]
+    piano_roll = pipeline.transcription.plot_piano_roll(midi_obj)
+    synthezized_transcription = midi_obj.synthesize(wave=np.sin)
+    # If you want to display MIDI as text, you can add pretty_midi or similar here
+    tab_text = midi_data["tabs_content"]
+    return guitar_path, original_spectrogram, guitar_spectrogram, piano_roll, (44100, synthezized_transcription), tab_text
 
-    synthezized_transcription = midi_data.synthesize(wave = np.sin)
 
-    return guitar_path, original_spectrogram, guitar_spectrogram, piano_roll, (44100, synthezized_transcription), tabs
+css="""
+#output-tabs-box textarea {
+    font-family: 'Fira Mono', 'Consolas', 'Menlo', 'Monaco', 'Liberation Mono', monospace;
+    font-size: 15px;
+    white-space: pre;
+}
+"""
 
-with gr.Blocks() as demo:
+with gr.Blocks(css=css) as demo:
     separation_model = gr.Dropdown(
         label="Separation Model",
         choices=SeparationHub.get_available_models(),
-        value="open_unmix",
+        value="dttnet",
     )
     transcription_model = gr.Dropdown(
         label="Transcription Model",
         choices=TrascriptionHub.get_available_models(),
-        value="basic_pitch",
+        value="crnn",
     )
-    tablature_transcription_model = gr.Dropdown(
-        label="Tablature Transcription Model",
-        choices=TablatureTrascriptionHub.get_available_models(),
-        value="tayuya",
-    )
+    # Removed tablature_transcription_model UI
     input_audio = gr.Audio(label="Input Audio")
     
     inference_btn = gr.Button("Inference")
@@ -51,12 +55,14 @@ with gr.Blocks() as demo:
     output_spectrogram = gr.Plot(label="Result spectrogram for guitar stem")
     transcription_piano_roll = gr.Plot(label="Transcription Piano Roll")
     synthezized_transcription = gr.Audio(label="Synthezized Transcription")
-    output_tabs = gr.Textbox(label="Output Tablature", placeholder="Generated tablature will appear here...")
+    output_tabs = gr.Textbox(label="Output Tablature", placeholder="Generated tablature will appear here...", lines=12, elem_id="output-tabs-box")
 
-    inference_btn.click(fn=inference, 
-                        inputs=[input_audio, separation_model, transcription_model, tablature_transcription_model], 
-                        outputs=[output_audio, original_spectrogram, output_spectrogram, transcription_piano_roll, synthezized_transcription, output_tabs], 
-                        api_name="Inference")
+    inference_btn.click(
+        fn=inference,
+        inputs=[input_audio, separation_model, transcription_model],
+        outputs=[output_audio, original_spectrogram, output_spectrogram, transcription_piano_roll, synthezized_transcription, output_tabs],
+        api_name="Inference"
+    )
     
-
+# formating output tabs with monospace font for better readability
 demo.launch(share=True)
