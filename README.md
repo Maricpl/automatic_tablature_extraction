@@ -5,6 +5,8 @@ Topic: Music Source Separation and Automatic Music Transcription using Artificia
 
 This topic is devoted to the problem of generating guitar tablature from song recordings. It's related to two Music Information Retrieval fields: Music Source Separation and Automatic Music Transcription.
 
+![alt text](docs/pipeline.png)
+
 ## REPO structure
 
 ```

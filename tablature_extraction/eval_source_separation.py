@@ -163,6 +163,21 @@ def main():
     medleydb_tracks = find_medleydb_tracks()
     filtered_tracks = filter_tracks(medleydb_tracks)
 
+    # Print number of filtered tracks and their total length
+    print(f"Number of filtered tracks: {len(filtered_tracks)}")
+    total_length = 0.0
+    for track in filtered_tracks:
+        audio_file = f"data/musdb18/wav/test/{track}/{track}.wav"
+        if not os.path.exists(audio_file):
+            audio_file = f"data/musdb18/wav/train/{track}/{track}.wav"
+        if os.path.exists(audio_file):
+            try:
+                audio_info = sf.info(audio_file)
+                total_length += audio_info.duration
+            except Exception as e:
+                print(f"Could not read {audio_file}: {e}")
+    print(f"Summed length of filtered tracks: {total_length:.2f} seconds ({total_length/60:.2f} min)")
+
     print("--- Running Inference ---")
     for model_name in models:
         print(f"Running inference for model: {model_name}")
@@ -173,10 +188,8 @@ def main():
             if not os.path.exists(audio_file):
                 audio_file = f"data/musdb18/wav/train/{track}/{track}.wav"
 
-            
             _ = separator.separate(audio_file)
-           
-    
+
     print("\n--- Running Evaluation ---")
     all_scores = []
     for model in models:
