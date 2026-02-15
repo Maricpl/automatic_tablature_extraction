@@ -1,3 +1,4 @@
+from typing import Dict
 import os
 import numpy as np
 import pandas as pd
@@ -7,32 +8,115 @@ from tablature_extraction.transcription import TrascriptionHub
 import music_transcription.python.config as mt_config
 import random
 
-# --- Note-level (TDR) and onset-level metrics ---
+
+def notes_to_fret_matrix(gt_notes, n_frames, n_strings, hop_length, sample_rate, max_frets, silence_fret_idx):
+    """
+    Convert list of note events to frame-wise [n_frames, n_strings] fret matrix for MPE metric.
+    Each cell: fret number if note active, else silence_fret_idx.
+    """
+    gt_frets = np.full((n_frames, n_strings), silence_fret_idx, dtype=int)
+    for note in gt_notes:
+        onset, offset, string, fret, _ = note
+        start_frame = int(np.round(onset * sample_rate / hop_length))
+        end_frame = int(np.round(offset * sample_rate / hop_length))
+        if 0 <= string < n_strings and 0 <= fret <= max_frets:
+            gt_frets[start_frame:end_frame+1, string] = int(fret)
+    return gt_frets
+
+def calculate_mpe_metrics(pred_frets: np.ndarray, gt_frets: np.ndarray, silence_fret_idx: int, fret_padding_value: int = -100) -> Dict[str, float]:
+    """
+    Multi Pitch Estimation (MPE) metrics: frame-level F1, precision, recall.
+    Args:
+        pred_frets: np.ndarray [frames, strings] - predicted fret numbers
+        gt_frets: np.ndarray [frames, strings] - ground truth fret numbers
+        silence_fret_idx: int - value for silence class
+        fret_padding_value: int - value for padding (ignored)
+    Returns:
+        Dict with mpe_f1, mpe_precision, mpe_recall
+    """
+    gt_active_mask = (gt_frets != silence_fret_idx) & (gt_frets != fret_padding_value)
+    pred_active_mask = pred_frets != silence_fret_idx
+
+    tp = ((gt_active_mask & pred_active_mask) & (gt_frets == pred_frets)).sum()
+    fp = (pred_active_mask & ~gt_active_mask).sum() + ((gt_active_mask & pred_active_mask) & (gt_frets != pred_frets)).sum()
+    fn = (~pred_active_mask & gt_active_mask).sum() + ((gt_active_mask & pred_active_mask) & (gt_frets != pred_frets)).sum()
+
+    precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+    recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+    f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
+
+    return {
+        "mpe_precision": float(precision),
+        "mpe_recall": float(recall),
+        "mpe_f1": float(f1),
+    }
+
 def calculate_note_level_metrics(predicted_notes, gt_notes, onset_window=0.05):
     gt_notes_eval = [
-        {"start_time": n[0], "end_time": n[1], "string": int(n[2]), "fret": int(n[3])}
+        {"start_time": n[0], "end_time": n[1], "string": int(n[2]), "fret": int(n[3]), "pitch": int(round(n[4]))}
         for n in gt_notes
         if 0 <= int(n[2]) < 6 and 0 <= int(n[3]) <= 20
     ]
-    if not gt_notes_eval and not predicted_notes:
-        return {"tdr_precision": 1.0, "tdr_recall": 1.0, "tdr_f1": 1.0}
-    tp_tdr = 0
-    matched_pred_indices = set()
-    for gt_note in gt_notes_eval:
-        for pred_idx, pred_note in enumerate(predicted_notes):
-            if pred_idx in matched_pred_indices:
+    pred_notes_eval = [
+        {"start_time": n["start_time"], "end_time": n["end_time"], "string": n["string"], "fret": n["fret"]}
+        for n in predicted_notes
+    ]
+
+    for n in pred_notes_eval:
+        # Estimate pitch from string and fret using GuitarSet tuning (EADGBE)
+        if hasattr(mt_config, "OPEN_STRING_PITCHES_JAMS"):
+            open_pitch = mt_config.OPEN_STRING_PITCHES_JAMS.get(n["string"], 40)
+        else:
+            open_pitch = 40 + 5 * n["string"]  # fallback: E2=40, A2=45, etc.
+        n["pitch"] = int(round(open_pitch + n["fret"]))
+
+    if not gt_notes_eval and not pred_notes_eval:
+        return {"tdr": 1.0, "tab_precision": 1.0, "tab_recall": 1.0, "tab_f1": 1.0}
+
+    # Step 1: Find all correct pitch matches (onset+pitch)
+    matched_pred_indices_pitch = set()
+    matched_gt_indices_pitch = set()
+    for gt_idx, gt_note in enumerate(gt_notes_eval):
+        for pred_idx, pred_note in enumerate(pred_notes_eval):
+            if pred_idx in matched_pred_indices_pitch:
                 continue
             onset_match = abs(gt_note["start_time"] - pred_note["start_time"]) <= onset_window
+            pitch_match = gt_note["pitch"] == pred_note["pitch"]
+            if onset_match and pitch_match:
+                matched_pred_indices_pitch.add(pred_idx)
+                matched_gt_indices_pitch.add(gt_idx)
+                break
+
+    n_pitch_matches = len(matched_gt_indices_pitch)
+
+    # count how many also have correct string+fret
+    matched_pred_indices_tab = set()
+    matched_gt_indices_tab = set()
+    for gt_idx, gt_note in enumerate(gt_notes_eval):
+        for pred_idx, pred_note in enumerate(pred_notes_eval):
+            if pred_idx in matched_pred_indices_tab:
+                continue
+            onset_match = abs(gt_note["start_time"] - pred_note["start_time"]) <= onset_window
+            pitch_match = gt_note["pitch"] == pred_note["pitch"]
             string_match = gt_note["string"] == pred_note["string"]
             fret_match = gt_note["fret"] == pred_note["fret"]
-            if onset_match and string_match and fret_match:
-                tp_tdr += 1
-                matched_pred_indices.add(pred_idx)
+            if onset_match and pitch_match and string_match and fret_match:
+                matched_pred_indices_tab.add(pred_idx)
+                matched_gt_indices_tab.add(gt_idx)
                 break
-    p_tdr = tp_tdr / len(predicted_notes) if predicted_notes else (1.0 if not gt_notes_eval else 0.0)
-    r_tdr = tp_tdr / len(gt_notes_eval) if gt_notes_eval else (1.0 if not predicted_notes else 0.0)
-    f1_tdr = 2 * p_tdr * r_tdr / (p_tdr + r_tdr) if (p_tdr + r_tdr) > 0 else 0.0
-    return {"tdr_precision": p_tdr, "tdr_recall": r_tdr, "tdr_f1": f1_tdr}
+
+    n_tab_matches = len(matched_gt_indices_tab)
+
+    # TDR: correct string-fret pairs / correct pitch matches
+    tdr = n_tab_matches / n_pitch_matches if n_pitch_matches > 0 else 0.0
+
+    # Tab metrics: precision, recall, F1 
+    tp_tab = n_tab_matches
+    p_tab = tp_tab / len(pred_notes_eval) if pred_notes_eval else (1.0 if not gt_notes_eval else 0.0)
+    r_tab = tp_tab / len(gt_notes_eval) if gt_notes_eval else (1.0 if not pred_notes_eval else 0.0)
+    f1_tab = 2 * p_tab * r_tab / (p_tab + r_tab) if (p_tab + r_tab) > 0 else 0.0
+
+    return {"tdr": tdr, "tab_precision": p_tab, "tab_recall": r_tab, "tab_f1": f1_tab}
 
 def calculate_onset_event_metrics(predicted_notes, gt_notes, onset_window=0.05):
     gt_onsets_times = np.unique(np.array([n[0] for n in gt_notes]))
@@ -170,17 +254,33 @@ def main():
                             pred_notes[-1]['end_time'] = f * (mt_config.HOP_LENGTH / mt_config.SAMPLE_RATE)
                     else:
                         active = False
+
             # TDR metrics
             tdr_metrics = calculate_note_level_metrics(pred_notes, gt_notes)
             # Onset metrics
             onset_metrics = calculate_onset_event_metrics(pred_notes, gt_notes)
+            # MPE metrics (frame-level)
+            silence_fret_idx = mt_config.MAX_FRETS + mt_config.FRET_SILENCE_CLASS_OFFSET if hasattr(mt_config, 'FRET_SILENCE_CLASS_OFFSET') else 21
+            fret_padding_value = mt_config.FRET_PADDING_VALUE if hasattr(mt_config, 'FRET_PADDING_VALUE') else -100
+            gt_frets = notes_to_fret_matrix(
+                gt_notes,
+                n_frames,
+                n_strings,
+                mt_config.HOP_LENGTH,
+                mt_config.SAMPLE_RATE,
+                mt_config.MAX_FRETS,
+                silence_fret_idx
+            )
+            mpe_metrics = calculate_mpe_metrics(pred_frets, gt_frets, silence_fret_idx, fret_padding_value)
+
             all_scores.append({
                 "model": model_name,
                 "track": stem,
                 **tdr_metrics,
                 **onset_metrics,
+                **mpe_metrics,
             })
-            print(f"{stem} {model_name}: TDR_F1={tdr_metrics['tdr_f1']:.3f}, Onset_F1={onset_metrics['onset_f1_event']:.3f}")
+            print(f"{stem} {model_name}: TDR={tdr_metrics['tdr']:.3f}, Tab_F1={tdr_metrics['tab_f1']:.3f}, Tab_P={tdr_metrics['tab_precision']:.3f}, Tab_R={tdr_metrics['tab_recall']:.3f}, Onset_F1={onset_metrics['onset_f1_event']:.3f}, MPE_F1={mpe_metrics['mpe_f1']:.3f}")
 
     df = pd.DataFrame(all_scores)
     output_dir = os.path.join(output_base, "evaluation_transcription")
@@ -188,8 +288,9 @@ def main():
     df.to_csv(os.path.join(output_dir, "scores.csv"), index=False)
     # Compute and save mean scores for all relevant metrics
     metric_cols = [
-        "tdr_precision", "tdr_recall", "tdr_f1",
-        "onset_precision_event", "onset_recall_event", "onset_f1_event"
+        "tdr", "tab_precision", "tab_recall", "tab_f1",
+        "onset_precision_event", "onset_recall_event", "onset_f1_event",
+        "mpe_precision", "mpe_recall", "mpe_f1"
     ]
     mean_scores = df.groupby("model")[metric_cols].mean()
     print("\n" + "="*20)
